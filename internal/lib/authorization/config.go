@@ -11,16 +11,29 @@ import (
 	"smart-pc-desktop-client/internal/lib/cross-platform/browser"
 )
 
+type (
+	// LoadTokenFunc is type of function to load saved tokens
+	LoadTokenFunc func(context.Context) (*oauth2.Token, error)
+	// SaveTokenFunc is type of function to save token
+	SaveTokenFunc func(context.Context, *oauth2.Token) error
+	// CallbackConfig is structure for configuring an HTTP server,
+	// deployed to implement OAuth2 flow
+	CallbackConfig struct {
+		Host         string        // Host for callback server (e.g., "127.0.0.1")
+		TTL          time.Duration // Maximum time to wait for callback
+		ReadTimeout  time.Duration // HTTP server read timeout
+		WriteTimeout time.Duration // HTTP server write timeout
+		IdleTimeout  time.Duration // HTTP server idle timeout
+	}
+)
+
 // Config holds configuration for OAuth2 authorization flow.
 // It includes OAuth2 configuration, token loading function, and server settings.
 type Config struct {
-	Oauth2Config               *oauth2.Config                // OAuth2 client configuration
-	LoadToken                  func() (*oauth2.Token, error) // Function to load saved tokens
-	RedirectHost               string                        // Host for callback server (e.g., "127.0.0.1")
-	CallbackServerTTL          time.Duration                 // Maximum time to wait for callback
-	CallbackServerReadTimeout  time.Duration                 // HTTP server read timeout
-	CallbackServerWriteTimeout time.Duration                 // HTTP server write timeout
-	CallbackServerIdleTimeout  time.Duration                 // HTTP server idle timeout
+	Oauth2Config   *oauth2.Config // OAuth2 client configuration
+	LoadToken      LoadTokenFunc  // Function to load saved tokens
+	SaveToken      SaveTokenFunc  // Function to save token
+	CallbackConfig CallbackConfig
 }
 
 // acquireNewToken performs a complete OAuth2 authorization flow to obtain a new token.
@@ -38,6 +51,10 @@ func (cfg *Config) acquireNewToken(ctx context.Context) (*oauth2.Token, error) {
 		return nil, fmt.Errorf("%s: failed to authorize using browser: %w", op, err)
 	}
 
+	if err := cfg.saveTokenIfNeeded(ctx, token); err != nil {
+		return nil, fmt.Errorf("%s: failed to save token: %w", op, err)
+	}
+
 	return token, nil
 }
 
@@ -50,7 +67,7 @@ func (cfg *Config) loadToken(ctx context.Context) (*oauth2.Token, error) {
 		return nil, fmt.Errorf("%s: no LoadToken function defined", op)
 	}
 
-	loadedToken, err := cfg.LoadToken()
+	loadedToken, err := cfg.LoadToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to load token: %w", op, err)
 	}
@@ -61,6 +78,10 @@ func (cfg *Config) loadToken(ctx context.Context) (*oauth2.Token, error) {
 			return nil, fmt.Errorf("%s: failed to update loaded token: %w", op, err)
 		}
 		loadedToken = newToken
+	}
+
+	if err := cfg.saveTokenIfNeeded(ctx, loadedToken); err != nil {
+		return nil, fmt.Errorf("%s: failed to save loaded token: %w", op, err)
 	}
 
 	return loadedToken, nil
@@ -79,7 +100,7 @@ func (cfg *Config) authorizeUsingBrowser(ctx context.Context) (*oauth2.Token, er
 
 	cfg.Oauth2Config.RedirectURL = fmt.Sprintf(
 		"http://%s:%d/callback",
-		cfg.RedirectHost,
+		cfg.CallbackConfig.Host,
 		params.port,
 	)
 
@@ -89,7 +110,12 @@ func (cfg *Config) authorizeUsingBrowser(ctx context.Context) (*oauth2.Token, er
 		return nil, fmt.Errorf("%s: failed to open auth code url in browser: %w", op, err)
 	}
 
-	code, err := cfg.getCallbackCodeWithTimeout(ctx, params.state, cfg.RedirectHost, params.port)
+	code, err := cfg.getCallbackCodeWithTimeout(
+		ctx,
+		params.state,
+		cfg.CallbackConfig.Host,
+		params.port,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to get callback code: %w", op, err)
 	}
@@ -118,14 +144,14 @@ func (cfg *Config) generateAuthCodeUrl(state, challenge string) string {
 }
 
 // getCallbackCodeWithTimeout starts a callback server with a timeout context.
-// Wraps getCallbackCode with context timeout based on CallbackServerTTL.
+// Wraps getCallbackCode with context timeout based on CallbackConfig.TTL.
 func (cfg *Config) getCallbackCodeWithTimeout(
 	ctx context.Context,
 	state string,
 	host string,
 	port int,
 ) (string, error) {
-	timeoutCtx, cancel := context.WithTimeout(ctx, cfg.CallbackServerTTL)
+	timeoutCtx, cancel := context.WithTimeout(ctx, cfg.CallbackConfig.TTL)
 	defer cancel()
 
 	return cfg.getCallbackCode(timeoutCtx, state, host, port)
@@ -150,9 +176,9 @@ func (cfg *Config) getCallbackCode(
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", host, port),
-		ReadTimeout:  cfg.CallbackServerReadTimeout,
-		IdleTimeout:  cfg.CallbackServerIdleTimeout,
-		WriteTimeout: cfg.CallbackServerWriteTimeout,
+		ReadTimeout:  cfg.CallbackConfig.ReadTimeout,
+		IdleTimeout:  cfg.CallbackConfig.IdleTimeout,
+		WriteTimeout: cfg.CallbackConfig.WriteTimeout,
 		Handler:      newCallbackHandler(state, codeChan, errChan),
 	}
 
@@ -193,15 +219,49 @@ func (cfg *Config) validate() error {
 	if cfg.Oauth2Config.Endpoint.TokenURL == "" {
 		errs = append(errs, errors.New("missing token url"))
 	}
-	if cfg.RedirectHost == "" {
+	if cfg.CallbackConfig.Host == "" {
 		errs = append(errs, errors.New("missing redirect host"))
 	}
-	if cfg.CallbackServerTTL == 0 {
+	if cfg.CallbackConfig.TTL == 0 {
 		errs = append(errs, errors.New("missing callback server ttl"))
 	}
 
 	if len(errs) > 0 {
 		return errors.Join(errs...)
+	}
+
+	return nil
+}
+
+// refreshToken forces a refresh token and saves the result
+func (cfg *Config) refreshToken(
+	ctx context.Context,
+	tokenToRefresh *oauth2.Token,
+) (*oauth2.Token, error) {
+	const op = "lib.authorization.config.refreshToken"
+
+	token, err := cfg.Oauth2Config.TokenSource(ctx, tokenToRefresh).Token()
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to refresh token: %w", op, err)
+	}
+
+	if err := cfg.saveTokenIfNeeded(ctx, token); err != nil {
+		return nil, fmt.Errorf("%s: failed to save token: %w", op, err)
+	}
+
+	return token, nil
+}
+
+// saveTokenIfNeeded saves the token if the SaveToken function is present
+func (cfg *Config) saveTokenIfNeeded(ctx context.Context, token *oauth2.Token) error {
+	const op = "lib.authorization.config.saveIfNeeded"
+
+	if cfg.SaveToken == nil {
+		return nil
+	}
+
+	if err := cfg.SaveToken(ctx, token); err != nil {
+		return fmt.Errorf("%s: save failed: %w", op, err)
 	}
 
 	return nil

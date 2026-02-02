@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -20,11 +21,13 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	authConfig := &authorization.Config{
-		CallbackServerTTL:          5 * time.Minute,
-		CallbackServerIdleTimeout:  5 * time.Second,
-		CallbackServerWriteTimeout: 5 * time.Second,
-		CallbackServerReadTimeout:  5 * time.Second,
-		RedirectHost:               "127.0.0.1",
+		CallbackConfig: authorization.CallbackConfig{
+			TTL:          5 * time.Minute,
+			IdleTimeout:  5 * time.Second,
+			WriteTimeout: 5 * time.Second,
+			ReadTimeout:  5 * time.Second,
+			Host:         "127.0.0.1",
+		},
 		Oauth2Config: &oauth2.Config{
 			ClientID: "smart-pc-cmd",
 			Scopes:   []string{"offline", "mqtt:pc:state:write"},
@@ -33,7 +36,7 @@ func main() {
 				TokenURL: "http://kratos:4444/oauth2/token",
 			},
 		},
-		LoadToken: func() (*oauth2.Token, error) {
+		LoadToken: func(_ context.Context) (*oauth2.Token, error) {
 			data, err := os.ReadFile("token.json")
 			if err != nil {
 				return nil, err
@@ -44,10 +47,24 @@ func main() {
 			}
 			return &token, nil
 		},
+		SaveToken: func(_ context.Context, token *oauth2.Token) error {
+			data, err := json.Marshal(token)
+			if err != nil {
+				return err
+			}
+
+			if err := os.WriteFile("token.json", data, 0o600); err != nil {
+				return err
+			}
+
+			return nil
+		},
 	}
 
 	auth, err := authorization.Load(context.Background(), authConfig)
 	if err != nil {
+		log.Debug("failed to load auth", slog.String("error", err.Error()))
+
 		newAuth, err := authorization.New(context.Background(), authConfig)
 		if err != nil {
 			panic(err)
@@ -57,10 +74,4 @@ func main() {
 	}
 
 	fmt.Println(auth.TryToken(context.Background()))
-
-	data, err := json.Marshal(auth.OAuthToken)
-	if err != nil {
-		panic(err)
-	}
-	os.WriteFile("token.json", data, 0x600)
 }

@@ -11,9 +11,9 @@ import (
 // Auth manages OAuth2 authentication and token lifecycle.
 // It provides thread-safe access to tokens and handles automatic token refresh.
 type Auth struct {
-	cfg        *Config       // Configuration for OAuth2 flow
-	OAuthToken *oauth2.Token // Current OAuth2 token
-	tokenMux   sync.Mutex    // Mutex for thread-safe token access
+	cfg      *Config       // Configuration for OAuth2 flow
+	token    *oauth2.Token // Current OAuth2 token
+	tokenMux sync.Mutex    // Mutex for thread-safe token access
 }
 
 // New creates a new Auth instance by performing a complete OAuth2 authorization flow.
@@ -27,8 +27,8 @@ func New(ctx context.Context, cfg *Config) (*Auth, error) {
 	}
 
 	return &Auth{
-		cfg:        cfg,
-		OAuthToken: token,
+		cfg:   cfg,
+		token: token,
 	}, nil
 }
 
@@ -43,8 +43,8 @@ func Load(ctx context.Context, cfg *Config) (*Auth, error) {
 	}
 
 	return &Auth{
-		cfg:        cfg,
-		OAuthToken: token,
+		cfg:   cfg,
+		token: token,
 	}, nil
 }
 
@@ -76,18 +76,20 @@ func (a *Auth) TryToken(ctx context.Context) (string, error) {
 func (a *Auth) tokenDangerously(ctx context.Context) (string, error) {
 	const op = "lib.authorization.authorization.tokenDangerously"
 
-	if a.OAuthToken == nil {
+	if a.token == nil {
 		return "", ErrNoToken
 	}
 
-	if !a.OAuthToken.Valid() {
-		token, err := a.cfg.Oauth2Config.TokenSource(ctx, a.OAuthToken).Token()
-		if err != nil {
-			return "", fmt.Errorf("%s: failed to update invalid token: %w", op, err)
-		}
-
-		a.OAuthToken = token
+	if a.token.Valid() {
+		return a.token.AccessToken, nil
 	}
 
-	return a.OAuthToken.AccessToken, nil
+	token, err := a.cfg.refreshToken(ctx, a.token)
+	if err != nil {
+		return "", fmt.Errorf("%s: failed to refresh invalid token: %w", op, err)
+	}
+
+	a.token = token
+
+	return a.token.AccessToken, nil
 }
