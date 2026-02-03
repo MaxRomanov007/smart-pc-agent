@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os"
+	"smart-pc-desktop-client/internal/lib/commands"
 	"time"
 
-	"golang.org/x/oauth2"
 	"smart-pc-desktop-client/internal/config"
 	"smart-pc-desktop-client/internal/lib/authorization"
 	"smart-pc-desktop-client/internal/lib/logger"
+
+	"golang.org/x/oauth2"
 )
 
 func main() {
@@ -30,7 +31,12 @@ func main() {
 		},
 		Oauth2Config: &oauth2.Config{
 			ClientID: "smart-pc-cmd",
-			Scopes:   []string{"offline", "mqtt:pc:state:write"},
+			Scopes: []string{
+				"offline",
+				"mqtt:pc:state:write",
+				"mqtt:pc:command:read",
+				"mqtt:pc:log:write",
+			},
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  "http://kratos:4444/oauth2/auth",
 				TokenURL: "http://kratos:4444/oauth2/token",
@@ -73,5 +79,18 @@ func main() {
 		auth = newAuth
 	}
 
-	fmt.Println(auth.TryToken(context.Background()))
+	executor := commands.NewExecutor()
+
+	executor.Set("hello", func(ctx context.Context, message *commands.Message) error {
+		log.Debug("hello", slog.Any("message", message))
+		return nil
+	})
+
+	executor.Start(context.Background(), log, &commands.StartOptions{
+		Auth:              auth,
+		URL:               "ws://localhost:9080/mqtt/pc/hello/command",
+		MessageType:       "command",
+		ReconnectDelay:    time.Second * 3,
+		ReconnectAttempts: 5,
+	})
 }
