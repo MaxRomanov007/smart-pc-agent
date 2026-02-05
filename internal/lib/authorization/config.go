@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"smart-pc-agent/internal/lib/cross-platform/browser"
+
 	"golang.org/x/oauth2"
-	"smart-pc-desktop-client/internal/lib/cross-platform/browser"
 )
 
 type (

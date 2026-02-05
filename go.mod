@@ -1,4 +1,4 @@
-module smart-pc-desktop-client
+module smart-pc-agent
 
 go 1.25
 

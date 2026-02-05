@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
-	"smart-pc-desktop-client/internal/lib/commands"
+	"smart-pc-agent/internal/lib/commands"
 	"time"
 
-	"smart-pc-desktop-client/internal/config"
-	"smart-pc-desktop-client/internal/lib/authorization"
-	"smart-pc-desktop-client/internal/lib/logger"
+	"smart-pc-agent/internal/config"
+	"smart-pc-agent/internal/lib/authorization"
+	"smart-pc-agent/internal/lib/logger"
 
 	"golang.org/x/oauth2"
 )

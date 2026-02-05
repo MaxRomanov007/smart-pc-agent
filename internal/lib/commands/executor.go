@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"smart-pc-desktop-client/internal/lib/logger/sl"
+	"smart-pc-agent/internal/lib/logger/sl"
 
 	"github.com/gorilla/websocket"
 )

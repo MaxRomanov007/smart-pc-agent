@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	"smart-pc-desktop-client/internal/lib/authorization"
+	"smart-pc-agent/internal/lib/authorization"
 )
 
 type StartOptions struct {
