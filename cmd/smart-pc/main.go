@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
-	"os"
 	"smart-pc-agent/internal/lib/commands"
+	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 	"time"
 
 	"smart-pc-agent/internal/config"
@@ -13,6 +15,8 @@ import (
 	"smart-pc-agent/internal/lib/logger"
 
 	"golang.org/x/oauth2"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -20,6 +24,40 @@ func main() {
 	log := logger.MustSetupLogger(cfg.Env)
 
 	log.Debug("debug messages are enabled")
+
+	db, err := sql.Open("sqlite3", "./data/database/db.db")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	queries := dbqueries.New(db)
+
+	auth, err := createAuth(log, queries)
+	if err != nil {
+		panic(err)
+	}
+
+	executor := commands.NewExecutor()
+
+	executor.Set("hello", func(ctx context.Context, message *commands.Message) error {
+		log.Debug("hello", slog.Any("message", message))
+		return nil
+	})
+
+	executor.Start(context.Background(), log, &commands.StartOptions{
+		Auth:              auth,
+		URL:               "ws://localhost:9080/mqtt/pc/hello/command",
+		MessageType:       "command",
+		ReconnectDelay:    time.Second * 3,
+		ReconnectAttempts: 5,
+	})
+}
+
+const tokenKey = "token"
+
+func createAuth(log *slog.Logger, queries *dbqueries.Queries) (*authorization.Auth, error) {
+	const op = "cmd.smart-pc.createAuth"
 
 	authConfig := &authorization.Config{
 		CallbackConfig: authorization.CallbackConfig{
@@ -42,24 +80,27 @@ func main() {
 				TokenURL: "http://kratos:4444/oauth2/token",
 			},
 		},
-		LoadToken: func(_ context.Context) (*oauth2.Token, error) {
-			data, err := os.ReadFile("token.json")
+		LoadToken: func(ctx context.Context) (*oauth2.Token, error) {
+			data, err := queries.GetStorageValue(ctx, tokenKey)
 			if err != nil {
 				return nil, err
 			}
 			var token oauth2.Token
-			if err := json.Unmarshal(data, &token); err != nil {
+			if err := json.Unmarshal([]byte(data.Value), &token); err != nil {
 				return nil, err
 			}
 			return &token, nil
 		},
-		SaveToken: func(_ context.Context, token *oauth2.Token) error {
+		SaveToken: func(ctx context.Context, token *oauth2.Token) error {
 			data, err := json.Marshal(token)
 			if err != nil {
 				return err
 			}
 
-			if err := os.WriteFile("token.json", data, 0o600); err != nil {
+			if err := queries.SetStorageValue(ctx, dbqueries.SetStorageValueParams{
+				Key:   tokenKey,
+				Value: string(data),
+			}); err != nil {
 				return err
 			}
 
@@ -73,24 +114,11 @@ func main() {
 
 		newAuth, err := authorization.New(context.Background(), authConfig)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 
 		auth = newAuth
 	}
 
-	executor := commands.NewExecutor()
-
-	executor.Set("hello", func(ctx context.Context, message *commands.Message) error {
-		log.Debug("hello", slog.Any("message", message))
-		return nil
-	})
-
-	executor.Start(context.Background(), log, &commands.StartOptions{
-		Auth:              auth,
-		URL:               "ws://localhost:9080/mqtt/pc/hello/command",
-		MessageType:       "command",
-		ReconnectDelay:    time.Second * 3,
-		ReconnectAttempts: 5,
-	})
+	return auth, nil
 }
