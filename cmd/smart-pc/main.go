@@ -6,17 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"smart-pc-agent/internal/lib/commands"
-	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 	"time"
 
 	"smart-pc-agent/internal/config"
-	"smart-pc-agent/internal/lib/authorization"
 	"smart-pc-agent/internal/lib/logger"
+	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 
-	"golang.org/x/oauth2"
-
+	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
+	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/oauth2"
 )
 
 func main() {
@@ -38,7 +37,13 @@ func main() {
 		panic(err)
 	}
 
-	executor := commands.NewExecutor()
+	executor, err := commands.NewExecutor(
+		"http://localhost:9080/mqtt/pc/hello/command/log",
+		"desktop-command-log",
+	)
+	if err != nil {
+		panic(err)
+	}
 
 	executor.Set("hello", func(ctx context.Context, message *commands.Message) error {
 		log.Debug("hello", slog.Any("message", message))

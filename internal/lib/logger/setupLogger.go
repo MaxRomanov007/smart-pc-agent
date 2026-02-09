@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"smart-pc-agent/internal/lib/logger/handlers/slogpretty"
+	"github.com/MaxRomanov007/smart-pc-go-lib/logger/handlers/slogpretty"
 )
 
 const (

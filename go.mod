@@ -3,16 +3,17 @@ module smart-pc-agent
 go 1.25
 
 require (
-	github.com/fatih/color v1.18.0
-	github.com/go-chi/chi/v5 v5.2.4
-	github.com/gorilla/websocket v1.5.3
+	github.com/MaxRomanov007/smart-pc-go-lib v0.0.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/mattn/go-sqlite3 v1.14.33
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.35.0
 )
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/fatih/color v1.18.0 // indirect
+	github.com/go-chi/chi/v5 v5.2.5 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
