@@ -8,14 +8,14 @@ import (
 	"log/slog"
 	"time"
 
-	"smart-pc-agent/internal/config"
-	"smart-pc-agent/internal/lib/logger"
-	"smart-pc-agent/internal/storage/sqlite/dbqueries"
-
 	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/oauth2"
+	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
+	"smart-pc-agent/internal/config"
+	"smart-pc-agent/internal/lib/logger"
+	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 )
 
 func main() {
@@ -45,10 +45,7 @@ func main() {
 		panic(err)
 	}
 
-	executor.Set("hello", func(ctx context.Context, message *commands.Message) error {
-		log.Debug("hello", slog.Any("message", message))
-		return nil
-	})
+	executor.SetDefault(executeScript.New(log, queries))
 
 	executor.Start(context.Background(), log, &commands.StartOptions{
 		Auth:              auth,
@@ -102,7 +99,7 @@ func createAuth(log *slog.Logger, queries *dbqueries.Queries) (*authorization.Au
 				return err
 			}
 
-			if err := queries.SetStorageValue(ctx, dbqueries.SetStorageValueParams{
+			if err := queries.SetStorageValue(ctx, &dbqueries.SetStorageValueParams{
 				Key:   tokenKey,
 				Value: string(data),
 			}); err != nil {

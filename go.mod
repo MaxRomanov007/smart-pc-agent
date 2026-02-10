@@ -3,9 +3,10 @@ module smart-pc-agent
 go 1.25
 
 require (
-	github.com/MaxRomanov007/smart-pc-go-lib v0.0.0
+	github.com/MaxRomanov007/smart-pc-go-lib v0.0.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/mattn/go-sqlite3 v1.14.33
+	github.com/yuin/gopher-lua v1.1.1
 	golang.org/x/oauth2 v0.35.0
 )
 

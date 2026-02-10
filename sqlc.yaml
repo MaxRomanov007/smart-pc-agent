@@ -8,3 +8,5 @@ sql:
       go:
         package: "dbqueries"
         out: "./internal/storage/sqlite/dbqueries"
+        emit_params_struct_pointers: true
+        emit_result_struct_pointers: true
