@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 	"strconv"
+
+	logLuaApi "smart-pc-agent/internal/commands/script-api/log"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
 	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models/message"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	lua "github.com/yuin/gopher-lua"
-	logLuaApi "smart-pc-agent/internal/commands/script-api/log"
-	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 )
 
 const (
@@ -26,12 +27,12 @@ func New(log *slog.Logger, queries *dbqueries.Queries) commands.CommandFunc {
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.execute-script"
 
-		log := log.With(sl.Op(op), sl.MsgId(msg))
+		log := log.With(sl.Op(op), sl.MsgId(msg.Publish))
 
-		script, err := queries.GetScriptById(ctx, msg.Payload.Data.Command)
+		script, err := queries.GetScriptById(ctx, msg.Data.Command)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				log.Warn("script not found", slog.String("command", msg.Payload.Data.Command))
+				log.Warn("script not found", slog.String("command", msg.Data.Command))
 				return commands.Error("command not found")
 			}
 			return fmt.Errorf("%s: failed to get script: %w", op, err)
@@ -46,7 +47,7 @@ func New(log *slog.Logger, queries *dbqueries.Queries) commands.CommandFunc {
 		if err != nil {
 			log.Warn(
 				"failed to parse message parameters",
-				slog.Any("parameter", msg.Payload.Data.Parameter),
+				slog.Any("parameter", msg.Data.Parameter),
 				sl.Err(err),
 			)
 			return commands.Error("failed to get message parameters")

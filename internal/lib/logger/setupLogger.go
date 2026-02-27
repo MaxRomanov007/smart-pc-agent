@@ -31,7 +31,15 @@ func MustSetupLogger(env string) *slog.Logger {
 			&slog.HandlerOptions{Level: slog.LevelInfo},
 		))
 	default:
-		panic(fmt.Errorf("invalid env type %q. available env types are: %q, %q, %q", env, envDev, envDebug, envProd))
+		panic(
+			fmt.Errorf(
+				"invalid env type %q. available env types are: %q, %q, %q",
+				env,
+				envDev,
+				envDebug,
+				envProd,
+			),
+		)
 	}
 
 	return log

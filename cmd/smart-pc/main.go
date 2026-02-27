@@ -3,24 +3,27 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
-	"log/slog"
-	"time"
-
-	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
-	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
-	_ "github.com/mattn/go-sqlite3"
-	"golang.org/x/oauth2"
-	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
+	"net/url"
+	"os/signal"
 	"smart-pc-agent/internal/config"
 	"smart-pc-agent/internal/lib/logger"
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
+	"syscall"
+
+	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
+
+	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
+	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
+	mqttAuth "github.com/MaxRomanov007/smart-pc-go-lib/mqtt-auth"
+	"github.com/eclipse/paho.golang/paho"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
 	cfg := config.MustLoad()
 	log := logger.MustSetupLogger(cfg.Env)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	log.Debug("debug messages are enabled")
 
@@ -37,90 +40,81 @@ func main() {
 		panic(err)
 	}
 
-	executor, err := commands.NewExecutor(
-		"http://localhost:9080/mqtt/pc/hello/command/log",
-		"desktop-command-log",
-	)
+	mqttCfg, router, err := createMQTTConfig(ctx, auth)
+	if err != nil {
+		panic(err)
+	}
+	mqttCfg.SetWill(&paho.WillMessage{
+		QoS:     1,
+		Retain:  true,
+		Topic:   "pcs/hello/status",
+		Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"offline\"}}"),
+	})
+
+	connCtx, cancel := context.WithCancel(context.Background())
+
+	connection, err := mqttAuth.NewConnection(connCtx, mqttCfg)
 	if err != nil {
 		panic(err)
 	}
 
+	if _, err := connection.Publish(connCtx, &paho.Publish{
+		QoS:     1,
+		Retain:  true,
+		Topic:   "pcs/hello/status",
+		Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"online\"}}"),
+	}); err != nil {
+		panic(err)
+	}
+
+	executor := commands.NewExecutor(connection, router)
 	executor.SetDefault(executeScript.New(log, queries))
 
-	executor.Start(context.Background(), log, &commands.StartOptions{
-		Auth:              auth,
-		URL:               "ws://localhost:9080/mqtt/pc/hello/command",
-		MessageType:       "command",
-		ReconnectDelay:    time.Second * 3,
-		ReconnectAttempts: 5,
-	})
+	if err := executor.StartListen(connCtx, &commands.StartListenOptions{
+		CommandTopic:       "pcs/hello/command",
+		CommandMessageType: "command",
+		LogTopic:           "pcs/hello/log",
+		LogMessageType:     "pc-command-log",
+		Log:                log,
+	}); err != nil {
+		panic(err)
+	}
+
+	<-ctx.Done()
+
+	if _, err := connection.Publish(connCtx, &paho.Publish{
+		QoS:     1,
+		Retain:  true,
+		Topic:   "pcs/hello/status",
+		Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"offline\"}}"),
+	}); err != nil {
+		panic(err)
+	}
+
+	cancel()
+
+	<-connection.Done()
 }
 
-const tokenKey = "token"
-
-func createAuth(log *slog.Logger, queries *dbqueries.Queries) (*authorization.Auth, error) {
-	const op = "cmd.smart-pc.createAuth"
-
-	authConfig := &authorization.Config{
-		CallbackConfig: authorization.CallbackConfig{
-			TTL:          5 * time.Minute,
-			IdleTimeout:  5 * time.Second,
-			WriteTimeout: 5 * time.Second,
-			ReadTimeout:  5 * time.Second,
-			Host:         "127.0.0.1",
-		},
-		Oauth2Config: &oauth2.Config{
-			ClientID: "smart-pc-cmd",
-			Scopes: []string{
-				"offline",
-				"mqtt:pc:state:write",
-				"mqtt:pc:command:read",
-				"mqtt:pc:log:write",
-			},
-			Endpoint: oauth2.Endpoint{
-				AuthURL:  "http://kratos:4444/oauth2/auth",
-				TokenURL: "http://kratos:4444/oauth2/token",
-			},
-		},
-		LoadToken: func(ctx context.Context) (*oauth2.Token, error) {
-			data, err := queries.GetStorageValue(ctx, tokenKey)
-			if err != nil {
-				return nil, err
-			}
-			var token oauth2.Token
-			if err := json.Unmarshal([]byte(data.Value), &token); err != nil {
-				return nil, err
-			}
-			return &token, nil
-		},
-		SaveToken: func(ctx context.Context, token *oauth2.Token) error {
-			data, err := json.Marshal(token)
-			if err != nil {
-				return err
-			}
-
-			if err := queries.SetStorageValue(ctx, &dbqueries.SetStorageValueParams{
-				Key:   tokenKey,
-				Value: string(data),
-			}); err != nil {
-				return err
-			}
-
-			return nil
-		},
-	}
-
-	auth, err := authorization.Load(context.Background(), authConfig)
+func createMQTTConfig(
+	ctx context.Context,
+	auth *authorization.Auth,
+) (*mqttAuth.ClientConfig, *mqttAuth.Router, error) {
+	cfg, router, err := mqttAuth.NewClientConfigWithRouter(ctx, auth)
 	if err != nil {
-		log.Debug("failed to load auth", slog.String("error", err.Error()))
-
-		newAuth, err := authorization.New(context.Background(), authConfig)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", op, err)
-		}
-
-		auth = newAuth
+		return nil, nil, err
 	}
 
-	return auth, nil
+	broker, err := url.Parse("mqtt://localhost:1883")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cfg.ClientConfig.ClientID = "smart-pc-cmd"
+	cfg.ServerUrls = []*url.URL{broker}
+	cfg.CleanStartOnInitialConnection = false
+	cfg.SessionExpiryInterval = 60
+	cfg.KeepAlive = 20
+
+	return cfg, router, nil
 }
