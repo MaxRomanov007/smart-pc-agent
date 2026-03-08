@@ -5,12 +5,11 @@ import (
 	"database/sql"
 	"net/url"
 	"os/signal"
+	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
 	"smart-pc-agent/internal/config"
 	"smart-pc-agent/internal/lib/logger"
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 	"syscall"
-
-	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
@@ -66,6 +65,8 @@ func main() {
 	}); err != nil {
 		panic(err)
 	}
+
+	startSendState(connCtx, log, connection)
 
 	executor := commands.NewExecutor(connection, router)
 	executor.SetDefault(executeScript.New(log, queries))
