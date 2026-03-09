@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 	mqttMessage "smart-pc-agent/internal/domain/models/mqtt-message"
 	"time"
 
@@ -22,7 +23,10 @@ func startSendState(ctx context.Context, log *slog.Logger, conn *mqttAuth.Connec
 	go func() {
 		log := log.With(sl.Op(op))
 
-		ticker := time.NewTicker(5 * time.Second)
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		ticker := time.NewTicker(1 * time.Second)
 
 		for {
 			select {
@@ -77,7 +81,7 @@ func getState() (*State, error) {
 	const op = "getState"
 
 	errs := make([]error, 0, 4)
-	percent, err := cpu.Percent(time.Second, false)
+	percent, err := cpu.Percent(100*time.Millisecond, false)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("%s: error getting used cpu percent: %w", op, err))
 	}

@@ -6,6 +6,9 @@ import (
 	"net/url"
 	"os/signal"
 	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
+	"smart-pc-agent/internal/commands/handlers/mute"
+	setVolume "smart-pc-agent/internal/commands/handlers/set-volume"
+	"smart-pc-agent/internal/commands/handlers/unmute"
 	"smart-pc-agent/internal/config"
 	"smart-pc-agent/internal/lib/logger"
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
@@ -70,6 +73,9 @@ func main() {
 
 	executor := commands.NewExecutor(connection, router)
 	executor.SetDefault(executeScript.New(log, queries))
+	executor.Set("mute", mute.New(log))
+	executor.Set("unmute", unmute.New(log))
+	executor.Set("set-volume", setVolume.New(log))
 
 	if err := executor.StartListen(connCtx, &commands.StartListenOptions{
 		CommandTopic:       "pcs/hello/command",
