@@ -7,6 +7,9 @@ import (
 	"os/signal"
 	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
 	"smart-pc-agent/internal/commands/handlers/mute"
+	nextTrack "smart-pc-agent/internal/commands/handlers/next-track"
+	playPause "smart-pc-agent/internal/commands/handlers/play-pause"
+	prevTrack "smart-pc-agent/internal/commands/handlers/prev-track"
 	setVolume "smart-pc-agent/internal/commands/handlers/set-volume"
 	"smart-pc-agent/internal/commands/handlers/unmute"
 	"smart-pc-agent/internal/config"
@@ -76,6 +79,9 @@ func main() {
 	executor.Set("mute", mute.New(log))
 	executor.Set("unmute", unmute.New(log))
 	executor.Set("set-volume", setVolume.New(log))
+	executor.Set("play-pause", playPause.New(log))
+	executor.Set("next-track", nextTrack.New(log))
+	executor.Set("prev-track", prevTrack.New(log))
 
 	if err := executor.StartListen(connCtx, &commands.StartListenOptions{
 		CommandTopic:       "pcs/hello/command",
