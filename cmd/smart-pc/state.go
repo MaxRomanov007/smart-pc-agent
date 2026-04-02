@@ -56,6 +56,16 @@ func startSendState(ctx context.Context, log *slog.Logger, conn *mqttAuth.Connec
 					log.Warn("error occurred while sending state", sl.Err(err))
 					continue
 				}
+
+				if _, err := conn.Publish(ctx, &paho.Publish{
+					QoS:     1,
+					Retain:  true,
+					Topic:   "pcs/hello/status",
+					Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"online\"}}"),
+				}); err != nil {
+					log.Warn("error occurred while sending status", sl.Err(err))
+					continue
+				}
 			}
 		}
 	}()

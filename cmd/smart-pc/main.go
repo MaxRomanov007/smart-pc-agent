@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"net/url"
 	"os/signal"
 	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
@@ -13,12 +14,15 @@ import (
 	setVolume "smart-pc-agent/internal/commands/handlers/set-volume"
 	"smart-pc-agent/internal/commands/handlers/unmute"
 	"smart-pc-agent/internal/config"
+	httpServer "smart-pc-agent/internal/http-server"
 	"smart-pc-agent/internal/lib/logger"
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 	"syscall"
+	"time"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
+	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	mqttAuth "github.com/MaxRomanov007/smart-pc-go-lib/mqtt-auth"
 	"github.com/eclipse/paho.golang/paho"
 	_ "github.com/mattn/go-sqlite3"
@@ -63,15 +67,6 @@ func main() {
 		panic(err)
 	}
 
-	if _, err := connection.Publish(connCtx, &paho.Publish{
-		QoS:     1,
-		Retain:  true,
-		Topic:   "pcs/hello/status",
-		Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"online\"}}"),
-	}); err != nil {
-		panic(err)
-	}
-
 	startSendState(connCtx, log, connection)
 
 	executor := commands.NewExecutor(connection, router)
@@ -93,6 +88,16 @@ func main() {
 		panic(err)
 	}
 
+	server := httpServer.New(log, cfg, ctx)
+
+	log.Info("starting http server", slog.String("address", cfg.HTTPServer.Address))
+	go func() {
+		if err := server.Start(); err != nil {
+			log.Error("failed to start http server", sl.Err(err))
+		}
+	}()
+	log.Info("http server started successfully")
+
 	<-ctx.Done()
 
 	if _, err := connection.Publish(connCtx, &paho.Publish{
@@ -105,6 +110,12 @@ func main() {
 	}
 
 	cancel()
+
+	serverStopCtx, serverStopCtxCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := server.Stop(serverStopCtx); err != nil {
+		log.Error("failed to stop http server", sl.Err(err))
+	}
+	serverStopCtxCancel()
 
 	<-connection.Done()
 }

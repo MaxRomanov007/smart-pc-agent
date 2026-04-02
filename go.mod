@@ -3,8 +3,10 @@ module smart-pc-agent
 go 1.26
 
 require (
-	github.com/MaxRomanov007/smart-pc-go-lib v0.1.1
+	github.com/MaxRomanov007/smart-pc-go-lib v0.1.4
 	github.com/eclipse/paho.golang v0.23.0
+	github.com/go-chi/chi/v5 v5.2.5
+	github.com/go-chi/render v1.0.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/itchyny/volume-go v0.2.2
 	github.com/mattn/go-sqlite3 v1.14.34
@@ -15,13 +17,13 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/ajg/form v1.5.1 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/go-chi/chi/v5 v5.2.5 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
-	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
+	github.com/lufia/plan9stats v0.0.0-20260216142805-b3301c5f2a88 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/moutend/go-wca v0.2.0 // indirect
