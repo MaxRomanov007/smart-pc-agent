@@ -1,16 +1,16 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS script_params
+CREATE TABLE IF NOT EXISTS command_params
 (
-    script_id TEXT NOT NULL REFERENCES scripts (id),
+    command_id TEXT NOT NULL REFERENCES commands (id),
     name      VARCHAR(255) NOT NULL,
     type      INTEGER NOT NULL CHECK (type >= 1 AND type <= 3),
 
-    PRIMARY KEY (script_id, name)
+    PRIMARY KEY (command_id, name)
 );
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS script_params;
+DROP TABLE IF EXISTS command_params;
 -- +goose StatementEnd

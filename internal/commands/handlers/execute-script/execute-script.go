@@ -9,7 +9,7 @@ import (
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 	"strconv"
 
-	logLuaApi "smart-pc-agent/internal/commands/script-api/log"
+	logLuaApi "smart-pc-agent/internal/commands/lua-api/log"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
 	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models/message"

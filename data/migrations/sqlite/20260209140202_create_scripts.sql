@@ -1,17 +1,13 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS scripts
+CREATE TABLE IF NOT EXISTS commands
 (
-    id          TEXT PRIMARY KEY,
-    name        VARCHAR(255)  NOT NULL CHECK (LENGTH(name) >= 3),
-    description VARCHAR(512),
-    text        VARCHAR(8192) NOT NULL,
-    created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id     TEXT PRIMARY KEY,
+    script VARCHAR(8192) NOT NULL
 );
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS scripts;
+DROP TABLE IF EXISTS commands;
 -- +goose StatementEnd
