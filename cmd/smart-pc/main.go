@@ -25,7 +25,6 @@ import (
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	mqttAuth "github.com/MaxRomanov007/smart-pc-go-lib/mqtt-auth"
 	"github.com/eclipse/paho.golang/paho"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
