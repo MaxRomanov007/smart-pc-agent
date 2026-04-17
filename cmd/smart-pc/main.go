@@ -50,5 +50,5 @@ func main() {
 		}
 	}()
 
-	<-waitable.WaitAll(mqttConn, srv)
+	waitable.WaitAll(mqttConn, srv)
 }

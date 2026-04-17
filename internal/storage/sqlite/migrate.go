@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/pressly/goose/v3"
 )
 
@@ -26,7 +27,7 @@ func migrate(db *sql.DB, log *slog.Logger, migrationsPath string) error {
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf("%s: failed to set goose dialect: %w", op, err)
 	}
-	goose.SetLogger(migrationLogger{log})
+	goose.SetLogger(migrationLogger{log.With(sl.Op(op))})
 	if err := goose.Up(db, migrationsPath); err != nil {
 		return fmt.Errorf("%s: failed to apply migrations: %w", op, err)
 	}

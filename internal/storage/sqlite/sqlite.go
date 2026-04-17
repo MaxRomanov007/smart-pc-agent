@@ -14,6 +14,7 @@ import (
 	"smart-pc-agent/internal/storage/sqlite/commands"
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 
+	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -35,12 +36,9 @@ func New(ctx context.Context, log *slog.Logger, cfg config.Storage) (*Storage, e
 		return nil, fmt.Errorf("%s: failed to connect to database: %w", op, err)
 	}
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				_ = db.Close()
-				return
-			}
+		<-ctx.Done()
+		if err := db.Close(); err != nil {
+			log.Error("failed to close sqlite database", sl.Err(err))
 		}
 	}()
 

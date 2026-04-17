@@ -6,7 +6,7 @@ type Waitable interface {
 	Done() <-chan struct{}
 }
 
-func WaitAll(targets ...Waitable) <-chan struct{} {
+func WaitAll(targets ...Waitable) {
 	var wg sync.WaitGroup
 	merged := make(chan struct{})
 
@@ -23,5 +23,5 @@ func WaitAll(targets ...Waitable) <-chan struct{} {
 		close(merged)
 	}()
 
-	return merged
+	<-merged
 }
