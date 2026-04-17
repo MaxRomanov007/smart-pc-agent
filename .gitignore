@@ -1,4 +1,4 @@
 .idea
 data/config/**
-data/database/**
+data/storage/**
 internal/storage/sqlite/dbqueries/**

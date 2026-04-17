@@ -8,5 +8,7 @@ sql:
       go:
         package: "dbqueries"
         out: "./internal/storage/sqlite/dbqueries"
-        emit_params_struct_pointers: true
-        emit_result_struct_pointers: true
+        overrides:
+          - column: "command_params.type"
+            go_type:
+              type: "int16"

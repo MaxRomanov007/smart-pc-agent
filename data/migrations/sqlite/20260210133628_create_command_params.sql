@@ -2,9 +2,9 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS command_params
 (
-    command_id TEXT NOT NULL REFERENCES commands (id),
-    name      VARCHAR(255) NOT NULL,
-    type      INTEGER NOT NULL CHECK (type >= 1 AND type <= 3),
+    command_id TEXT         NOT NULL REFERENCES commands (id),
+    name       VARCHAR(255) NOT NULL,
+    type       SMALLINT     NOT NULL CHECK (type >= 1 AND type <= 3),
 
     PRIMARY KEY (command_id, name)
 );

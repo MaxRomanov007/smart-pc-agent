@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"smart-pc-agent/internal/storage/sqlite/dbqueries"
+	"smart-pc-agent/internal/domain/models"
+	logLuaApi "smart-pc-agent/internal/mqtt/commands/lua-api/log"
+	"smart-pc-agent/internal/storage"
 	"strconv"
-
-	logLuaApi "smart-pc-agent/internal/commands/lua-api/log"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
 	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models/message"
@@ -23,22 +23,34 @@ const (
 	TypeString = 3
 )
 
-func New(log *slog.Logger, queries *dbqueries.Queries) commands.CommandFunc {
+type CommandGetter interface {
+	GetCommandById(ctx context.Context, id string) (models.Command, error)
+}
+
+type CommandParamsGetter interface {
+	GetCommandParams(ctx context.Context, commandId string) ([]models.CommandParameter, error)
+}
+
+func New(
+	log *slog.Logger,
+	commandGetter CommandGetter,
+	paramsGetter CommandParamsGetter,
+) commands.CommandFunc {
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.execute-script"
 
 		log := log.With(sl.Op(op), sl.MsgId(msg.Publish))
 
-		script, err := queries.GetScriptById(ctx, msg.Data.Command)
+		command, err := commandGetter.GetCommandById(ctx, msg.Data.Command)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, storage.ErrNotFound) {
 				log.Warn("script not found", slog.String("command", msg.Data.Command))
 				return commands.Error("command not found")
 			}
 			return fmt.Errorf("%s: failed to get script: %w", op, err)
 		}
 
-		scriptParams, err := queries.GetScriptParams(ctx, script.ID)
+		scriptParams, err := paramsGetter.GetCommandParams(ctx, command.ID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("%s: failed to get script: %w", op, err)
 		}
@@ -64,7 +76,7 @@ func New(log *slog.Logger, queries *dbqueries.Queries) commands.CommandFunc {
 		apiTable := createApiTable(l, log)
 		l.SetGlobal("api", apiTable)
 
-		if err := l.DoString(script.Text); err != nil {
+		if err := l.DoString(command.Script); err != nil {
 			return fmt.Errorf("%s: failed to execute script: %w", op, err)
 		}
 
@@ -75,7 +87,7 @@ func New(log *slog.Logger, queries *dbqueries.Queries) commands.CommandFunc {
 func createParamsTable(
 	logger *slog.Logger,
 	l *lua.LState,
-	scriptParams []*dbqueries.ScriptParam,
+	scriptParams []models.CommandParameter,
 	messageParams map[string]string,
 ) *lua.LTable {
 	const op = "commands.handlers.execute-script.createParamsTable"

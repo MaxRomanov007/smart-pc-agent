@@ -1,30 +1,88 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"smart-pc-agent/internal/config"
 	appStorage "smart-pc-agent/internal/storage/sqlite/app-storage"
+	commandParameters "smart-pc-agent/internal/storage/sqlite/command-parameters"
+	"smart-pc-agent/internal/storage/sqlite/commands"
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type Storage struct {
-	AppStorage *appStorage.Storage
+	AppStorage        *appStorage.Storage
+	Commands          *commands.Storage
+	CommandParameters *commandParameters.Storage
 }
 
-func New(path string) (*Storage, error) {
+func New(ctx context.Context, log *slog.Logger, cfg config.Storage) (*Storage, error) {
 	const op = "storage.sqlite.New"
 
-	db, err := sql.Open("sqlite3", path)
+	if err := preventDatabaseFileCreated(cfg.Path); err != nil {
+		return nil, fmt.Errorf("%s: failed to prevent database file created: %w", op, err)
+	}
+
+	db, err := sql.Open("sqlite3", cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to connect to database: %w", op, err)
 	}
-	defer db.Close()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				_ = db.Close()
+				return
+			}
+		}
+	}()
+
+	if err := migrate(db, log, cfg.MigrationsPath); err != nil {
+		return nil, fmt.Errorf("%s: failed to apply migrations: %w", op, err)
+	}
 
 	queries := dbqueries.New(db)
 
 	return &Storage{
-		AppStorage: appStorage.New(queries),
+		AppStorage:        appStorage.New(queries),
+		Commands:          commands.New(queries),
+		CommandParameters: commandParameters.New(queries),
 	}, nil
+}
+
+func preventDatabaseFileCreated(path string) error {
+	const op = "storage.sqlite.preventDatabaseFileCreated"
+
+	if filepath.Ext(path) != ".db" {
+		return fmt.Errorf("%s: %q not a database file", op, path)
+	}
+
+	_, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			return fmt.Errorf("%s: failed to create directories to path: %w", op, err)
+		}
+
+		file, err := os.Create(path)
+		if err != nil {
+			return fmt.Errorf("%s: failed to create database file: %w", op, err)
+		}
+		if err := file.Close(); err != nil {
+			return fmt.Errorf("%s: failed to close database file: %w", op, err)
+		}
+
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("%s: failed to stat database file: %w", op, err)
+	}
+
+	return nil
 }

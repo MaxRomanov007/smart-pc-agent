@@ -10,16 +10,18 @@ import (
 )
 
 type Config struct {
-	Env         string     `yaml:"env"          env-default:"production"`
-	StoragePath string     `yaml:"storage_path" env-default:"./data/storage/db.db"`
-	HTTPServer  HTTPServer `yaml:"http_server"`
-	Auth        Auth       `yaml:"auth"`
+	Env        string     `yaml:"env"         env-default:"production"`
+	HTTPServer HTTPServer `yaml:"http_server"`
+	Auth       Auth       `yaml:"auth"`
+	MQTT       MQTT       `yaml:"mqtt"`
+	Storage    Storage    `yaml:"storage"`
 }
 
 type HTTPServer struct {
-	Address     string        `yaml:"address"      env-default:"localhost:8080"`
-	Timeout     time.Duration `yaml:"timeout"      env-default:"4s"`
-	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+	Address         string        `yaml:"address"          env-default:"localhost:8080"`
+	Timeout         time.Duration `yaml:"timeout"          env-default:"4s"`
+	IdleTimeout     time.Duration `yaml:"idle_timeout"     env-default:"60s"`
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" env-default:"1s"`
 }
 
 type Auth struct {
@@ -45,6 +47,18 @@ type Oauth2 struct {
 type Oauth2Endpoint struct {
 	AuthURL  string `yaml:"auth_url"  env-default:"http://kratos:4444/oauth2/auth"`
 	TokenURL string `yaml:"token_url" env-default:"http://kratos:4444/oauth2/token"`
+}
+
+type MQTT struct {
+	BrokerURL             string `yaml:"broker_url"              env-default:"mqtt://localhost:1883"`
+	ClientIDPrefix        string `yaml:"client_id_prefix"        env-default:"smart_pc_agent_"`
+	SessionExpiryInterval uint32 `yaml:"session_expiry_interval" env-default:"60"`
+	KeepAlive             uint16 `yaml:"keep_alive"              env-default:"20"`
+}
+
+type Storage struct {
+	Path           string `yaml:"path"            env-default:"./data/storage/db.db"`
+	MigrationsPath string `yaml:"migrations_path" env-default:"./data/migrations/sqlite"`
 }
 
 func MustLoad() *Config {

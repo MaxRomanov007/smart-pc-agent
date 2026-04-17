@@ -2,29 +2,18 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"log/slog"
-	"net/url"
+	"os"
 	"os/signal"
-	executeScript "smart-pc-agent/internal/commands/handlers/execute-script"
-	"smart-pc-agent/internal/commands/handlers/mute"
-	nextTrack "smart-pc-agent/internal/commands/handlers/next-track"
-	playPause "smart-pc-agent/internal/commands/handlers/play-pause"
-	prevTrack "smart-pc-agent/internal/commands/handlers/prev-track"
-	setVolume "smart-pc-agent/internal/commands/handlers/set-volume"
-	"smart-pc-agent/internal/commands/handlers/unmute"
+	authorization "smart-pc-agent/internal/auth"
 	"smart-pc-agent/internal/config"
 	httpServer "smart-pc-agent/internal/http-server"
 	"smart-pc-agent/internal/lib/logger"
-	"smart-pc-agent/internal/storage/sqlite/dbqueries"
+	"smart-pc-agent/internal/lib/waitable"
+	"smart-pc-agent/internal/mqtt"
+	"smart-pc-agent/internal/storage/sqlite"
 	"syscall"
-	"time"
 
-	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
-	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
-	mqttAuth "github.com/MaxRomanov007/smart-pc-go-lib/mqtt-auth"
-	"github.com/eclipse/paho.golang/paho"
 )
 
 func main() {
@@ -35,109 +24,31 @@ func main() {
 
 	log.Debug("debug messages are enabled")
 
-	db, err := sql.Open("sqlite3", "./data/database/db.db")
+	storage, err := sqlite.New(ctx, log, cfg.Storage)
 	if err != nil {
-		panic(err)
+		log.Error("failed to create sqlite storage", sl.Err(err))
+		os.Exit(1)
 	}
-	defer db.Close()
 
-	queries := dbqueries.New(db)
-
-	auth, err := createAuth(log, queries)
+	auth, err := authorization.New(ctx, cfg.Auth, storage.AppStorage, storage.AppStorage)
 	if err != nil {
-		panic(err)
+		log.Error("failed to create auth", sl.Err(err))
+		os.Exit(1)
 	}
 
-	mqttCfg, router, err := createMQTTConfig(ctx, auth)
+	mqttConn, err := mqtt.New(ctx, log, cfg.MQTT, auth, storage.Commands, storage.CommandParameters)
 	if err != nil {
-		panic(err)
-	}
-	mqttCfg.SetWill(&paho.WillMessage{
-		QoS:     1,
-		Retain:  true,
-		Topic:   "pcs/hello/status",
-		Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"offline\"}}"),
-	})
-
-	connCtx, cancel := context.WithCancel(context.Background())
-
-	connection, err := mqttAuth.NewConnection(connCtx, mqttCfg)
-	if err != nil {
-		panic(err)
+		log.Error("failed to create mqtt connection", sl.Err(err))
+		os.Exit(1)
 	}
 
-	startSendState(connCtx, log, connection)
-
-	executor := commands.NewExecutor(connection, router)
-	executor.SetDefault(executeScript.New(log, queries))
-	executor.Set("mute", mute.New(log))
-	executor.Set("unmute", unmute.New(log))
-	executor.Set("set-volume", setVolume.New(log))
-	executor.Set("play-pause", playPause.New(log))
-	executor.Set("next-track", nextTrack.New(log))
-	executor.Set("prev-track", prevTrack.New(log))
-
-	if err := executor.StartListen(connCtx, &commands.StartListenOptions{
-		CommandTopic:       "pcs/hello/command",
-		CommandMessageType: "command",
-		LogTopic:           "pcs/hello/log",
-		LogMessageType:     "pc-command-log",
-		Log:                log,
-	}); err != nil {
-		panic(err)
-	}
-
-	server := httpServer.New(log, cfg, ctx)
-
-	log.Info("starting http server", slog.String("address", cfg.HTTPServer.Address))
+	srv := httpServer.New(ctx, log, cfg.HTTPServer)
 	go func() {
-		if err := server.Start(); err != nil {
-			log.Error("failed to start http server", sl.Err(err))
+		if err := srv.Run(ctx); err != nil {
+			log.Error("http server error", sl.Err(err))
+			os.Exit(1)
 		}
 	}()
-	log.Info("http server started successfully")
 
-	<-ctx.Done()
-
-	if _, err := connection.Publish(connCtx, &paho.Publish{
-		QoS:     1,
-		Retain:  true,
-		Topic:   "pcs/hello/status",
-		Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"offline\"}}"),
-	}); err != nil {
-		panic(err)
-	}
-
-	cancel()
-
-	serverStopCtx, serverStopCtxCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if err := server.Stop(serverStopCtx); err != nil {
-		log.Error("failed to stop http server", sl.Err(err))
-	}
-	serverStopCtxCancel()
-
-	<-connection.Done()
-}
-
-func createMQTTConfig(
-	ctx context.Context,
-	auth *authorization.Auth,
-) (*mqttAuth.ClientConfig, *mqttAuth.Router, error) {
-	cfg, router, err := mqttAuth.NewClientConfigWithRouter(ctx, auth)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	broker, err := url.Parse("mqtt://localhost:1883")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cfg.ClientConfig.ClientID = "smart-pc-cmd"
-	cfg.ServerUrls = []*url.URL{broker}
-	cfg.CleanStartOnInitialConnection = false
-	cfg.SessionExpiryInterval = 60
-	cfg.KeepAlive = 20
-
-	return cfg, router, nil
+	<-waitable.WaitAll(mqttConn, srv)
 }

@@ -1,4 +1,4 @@
-package main
+package mqtt
 
 import (
 	"context"
@@ -19,7 +19,8 @@ import (
 )
 
 func startSendState(ctx context.Context, log *slog.Logger, conn *mqttAuth.Connection) {
-	const op = "startSendState"
+	const op = "mqtt.sendState"
+
 	go func() {
 		log := log.With(sl.Op(op))
 

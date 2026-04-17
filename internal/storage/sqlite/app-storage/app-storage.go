@@ -50,7 +50,7 @@ func (s Storage) SetAuthToken(ctx context.Context, token *oauth2.Token) error {
 		return fmt.Errorf("%s: failed to marshal token: %w", op, err)
 	}
 
-	if err := s.queries.SetStorageValue(ctx, &dbqueries.SetStorageValueParams{
+	if err := s.queries.SetStorageValue(ctx, dbqueries.SetStorageValueParams{
 		Key:   authTokenKey,
 		Value: string(data),
 	}); err != nil {
