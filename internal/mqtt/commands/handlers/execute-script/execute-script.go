@@ -39,7 +39,7 @@ func New(
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.execute-script"
 
-		log := log.With(sl.Op(op), sl.MsgId(msg.Publish))
+		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
 
 		command, err := commandGetter.GetCommandById(ctx, msg.Data.Command)
 		if err != nil {

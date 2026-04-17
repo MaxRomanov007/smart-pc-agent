@@ -14,7 +14,7 @@ func New(log *slog.Logger) commands.CommandFunc {
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.playPause"
 
-		log := log.With(sl.Op(op), sl.MsgId(msg.Publish))
+		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
 
 		if err := mediactl.PlayPause(); err != nil {
 			log.Warn("failed to send play/pause", sl.Err(err))

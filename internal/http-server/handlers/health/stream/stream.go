@@ -24,7 +24,7 @@ func New(log *slog.Logger, shutdownCtx context.Context) http.HandlerFunc {
 			}
 		}()
 
-		log := log.With(sl.Op(op), sl.ReqId(r))
+		log := log.With(sl.Op(op), sl.ReqID(r))
 
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")

@@ -14,7 +14,7 @@ func New(log *slog.Logger) commands.CommandFunc {
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.unmute"
 
-		log := log.With(sl.Op(op), sl.MsgId(msg.Publish))
+		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
 
 		if err := volume.Unmute(); err != nil {
 			log.Warn("failed to unmute", sl.Err(err))

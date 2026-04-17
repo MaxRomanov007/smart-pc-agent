@@ -18,7 +18,7 @@ func New(log *slog.Logger) commands.CommandFunc {
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.set-volume"
 
-		log := log.With(sl.Op(op), sl.MsgId(msg.Publish))
+		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
 
 		parameter, err := message.Parameter[Parameter](msg)
 		if err != nil {

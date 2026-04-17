@@ -14,7 +14,7 @@ func New(log *slog.Logger) commands.CommandFunc {
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.nextTrack"
 
-		log := log.With(sl.Op(op), sl.MsgId(msg.Publish))
+		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
 
 		if err := mediactl.NextTrack(); err != nil {
 			log.Warn("failed to send next track", sl.Err(err))
