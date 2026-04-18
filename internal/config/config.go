@@ -15,6 +15,7 @@ type Config struct {
 	Auth       Auth       `yaml:"auth"`
 	MQTT       MQTT       `yaml:"mqtt"`
 	Storage    Storage    `yaml:"storage"`
+	Services   Services   `yaml:"services"`
 }
 
 type HTTPServer struct {
@@ -59,6 +60,15 @@ type MQTT struct {
 type Storage struct {
 	Path           string `yaml:"path"            env-default:"./data/storage/db.db"`
 	MigrationsPath string `yaml:"migrations_path" env-default:"./data/migrations/sqlite"`
+}
+
+type Services struct {
+	Pcs Service `yaml:"pcs"`
+}
+
+type Service struct {
+	Timeout time.Duration `yaml:"timeout"  env-default:"5s"`
+	BaseURL string        `yaml:"base_url" env-default:"http://localhost:8080"`
 }
 
 func MustLoad() *Config {

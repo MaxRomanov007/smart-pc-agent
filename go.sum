@@ -5,6 +5,8 @@ github.com/MaxRomanov007/smart-pc-go-lib v0.1.4 h1:tGvK2tobF7nvP+irMiBJ5KjlJJBZw
 github.com/MaxRomanov007/smart-pc-go-lib v0.1.4/go.mod h1:CBwzVqrHMKuRCHncMR9x/M/C4OqaYaMFjxjE1d3Ee48=
 github.com/MaxRomanov007/smart-pc-go-lib v0.1.5 h1:gcd9mH8nOkWbU5lQdH5dW17rFxH3cGMOyZ1+Ylhg4zQ=
 github.com/MaxRomanov007/smart-pc-go-lib v0.1.5/go.mod h1:CBwzVqrHMKuRCHncMR9x/M/C4OqaYaMFjxjE1d3Ee48=
+github.com/MaxRomanov007/smart-pc-go-lib v0.1.6 h1:+u3mFYrgbrDpYt0SYIcrHDbqypqw5+ATMxoP3l9QO1E=
+github.com/MaxRomanov007/smart-pc-go-lib v0.1.6/go.mod h1:CBwzVqrHMKuRCHncMR9x/M/C4OqaYaMFjxjE1d3Ee48=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

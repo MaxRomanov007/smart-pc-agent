@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"smart-pc-agent/internal/config"
+	getCommands "smart-pc-agent/internal/http-server/handlers/commands/get-commands"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 
 	mwLogger "smart-pc-agent/internal/http-server/middlewares/logger"
@@ -24,7 +25,14 @@ type Server struct {
 	done chan struct{}
 }
 
-func New(ctx context.Context, log *slog.Logger, cfg config.HTTPServer) *Server {
+func New(
+	ctx context.Context,
+	log *slog.Logger,
+	cfg config.HTTPServer,
+	commandGetter getCommands.CommandGetter,
+	commandParametersGetter getCommands.CommandParametersGetter,
+	commandScriptGetter getCommands.CommandScriptGetter,
+) *Server {
 	r := chi.NewRouter()
 	r.Use(
 		middleware.RequestID,
@@ -33,6 +41,10 @@ func New(ctx context.Context, log *slog.Logger, cfg config.HTTPServer) *Server {
 	)
 
 	r.Get("/health/stream", stream.New(log, ctx))
+	r.Get(
+		"/commands",
+		getCommands.New(log, commandGetter, commandParametersGetter, commandScriptGetter),
+	)
 
 	srv := &http.Server{
 		Addr:         cfg.Address,

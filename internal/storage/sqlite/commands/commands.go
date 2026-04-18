@@ -32,6 +32,20 @@ func (s Storage) GetCommandById(ctx context.Context, id string) (models.Command,
 	return mapStorageCommand(command), nil
 }
 
+func (s Storage) GetCommandScript(ctx context.Context, id string) (string, error) {
+	const op = "sqlite.commands.GetCommandScript"
+
+	command, err := s.queries.GetCommandById(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", storage.ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("%s: failed to get command by id: %w", op, err)
+	}
+
+	return command.Script, nil
+}
+
 func mapStorageCommand(command dbqueries.Command) models.Command {
 	return models.Command{
 		ID:     command.ID,
