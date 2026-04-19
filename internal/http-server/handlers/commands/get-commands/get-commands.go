@@ -36,7 +36,7 @@ func New(
 		commands, err := commandGetter.GetCommands(r.Context())
 		if err != nil {
 			log.Error("failed to get commands", sl.Err(err))
-			render.JSON(w, r, response.Error("failed to get commands"))
+			render.JSON(w, r, response.InternalError())
 			return
 		}
 

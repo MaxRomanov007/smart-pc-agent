@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"smart-pc-agent/internal/config"
 	"smart-pc-agent/internal/domain/models"
+	"smart-pc-agent/internal/services"
 	"smart-pc-agent/internal/storage"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/api/response"
@@ -65,74 +66,55 @@ func (s *Service) ensurePcIDCreated(
 	const op = "pcs-service.ensurePcIDCreated"
 
 	pcID, err := getter.GetPcID(ctx)
-	if err == nil {
-		s.pcID = pcID
+	if errors.Is(err, storage.ErrNotFound) {
+		if err := s.createAndSaveNewPc(ctx, setter); err != nil {
+			return fmt.Errorf("%s: failed to create and save new pc: %w", op, err)
+		}
 		return nil
 	}
-	if !errors.Is(err, storage.ErrNotFound) {
+	if err != nil {
 		return fmt.Errorf("%s: failed to get saved pc id: %w", op, err)
 	}
 
-	pcJson, err := json.Marshal(models.Pc{Name: "New PC"})
-	if err != nil {
-		return fmt.Errorf("%s: failed to marshal new pc data: %w", op, err)
-	}
-
-	req, err := s.apiClient.NewRequest(
-		ctx,
-		http.MethodPost,
-		s.url("/pcs"),
-		bytes.NewReader(pcJson),
-	)
-	if err != nil {
-		return fmt.Errorf("%s: failed to create create pc request: %w", op, err)
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := authorization.DoRequest[models.Pc](s.apiClient, req)
-	if err != nil {
-		return fmt.Errorf("%s: failed to do create pc request: %w", op, err)
-	}
-
-	if resp.Status != response.StatusOK {
-		return fmt.Errorf("%s: failed to create new pc request, status: %s", op, resp.Status)
-	}
-
-	s.pcID = resp.Data.ID
-
-	saveErr := setter.SetPcID(ctx, resp.Data.ID)
-	if saveErr == nil {
+	_, err = s.GetPc(ctx, pcID)
+	if errors.Is(err, services.ErrNotFound) {
+		if err := s.createAndSaveNewPc(ctx, setter); err != nil {
+			return fmt.Errorf("%s: failed to renew and save pc: %w", op, err)
+		}
 		return nil
 	}
-
-	resp, err = authorization.DoNewRequest[models.Pc](
-		ctx,
-		s.apiClient,
-		http.MethodDelete,
-		s.pcURL(""),
-		nil,
-	)
 	if err != nil {
-		return fmt.Errorf(
-			"%s: failed to save pc id: %w: failed to do delete pc by id request after pc id save failed: %w",
-			op,
-			saveErr,
-			err,
-		)
+		return fmt.Errorf("%s: failed to get saved pc from server: %w", op, err)
 	}
 
-	if resp.Status != response.StatusOK {
-		return fmt.Errorf(
-			"%s: failed to save pc id: %w: delete pc by id request is failed (status: %s) after pc id save failed: %w",
-			op,
-			saveErr,
-			resp.Status,
-			err,
-		)
+	s.pcID = pcID
+	return nil
+}
+
+func (s *Service) createAndSaveNewPc(ctx context.Context, setter PcIDSetter) error {
+	const op = "pcs-service.createAndSaveNewPc"
+
+	newPc, err := s.CreatePc(ctx, models.Pc{Name: "New PC"})
+	if err != nil {
+		return fmt.Errorf("%s: failed to create new pc: %w", op, err)
 	}
 
-	return fmt.Errorf("%s: failed to save pc id: %w", op, saveErr)
+	saveErr := setter.SetPcID(ctx, newPc.ID)
+	if saveErr != nil {
+		if _, err := s.DeletePc(ctx, newPc.ID); err != nil {
+			return fmt.Errorf(
+				"%s: failed to delete saved pc (error: %w) after save pc id failed (error: %w)",
+				op,
+				err,
+				saveErr,
+			)
+		}
+
+		return fmt.Errorf("%s: failed to save pc id: %w", op, saveErr)
+	}
+
+	s.pcID = newPc.ID
+	return nil
 }
 
 func (s *Service) url(endpoint string) string {
@@ -145,6 +127,99 @@ func (s *Service) pcURL(endpoint string) string {
 
 func (s *Service) pcCommandUrl(commandID, endpoint string) string {
 	return s.pcURL(fmt.Sprintf("/commands/%s%s", commandID, endpoint))
+}
+
+func (s *Service) CreatePc(ctx context.Context, pc models.Pc) (models.Pc, error) {
+	const op = "pcs-service.CreatePc"
+
+	pcJson, err := json.Marshal(pc)
+	if err != nil {
+		return models.Pc{}, fmt.Errorf("%s: failed to marshal new pc data: %w", op, err)
+	}
+
+	req, err := s.apiClient.NewRequest(
+		ctx,
+		http.MethodPost,
+		s.url("/pcs"),
+		bytes.NewReader(pcJson),
+	)
+	if err != nil {
+		return models.Pc{}, fmt.Errorf("%s: failed to create create pc request: %w", op, err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := authorization.DoRequest[models.Pc](s.apiClient, req)
+	if err != nil {
+		return models.Pc{}, fmt.Errorf("%s: failed to do create pc request: %w", op, err)
+	}
+
+	if resp.Status != response.StatusOK {
+		return models.Pc{}, fmt.Errorf("%s: response status is not ok: %s", op, resp.Status)
+	}
+
+	return *resp.Data, nil
+}
+
+func (s *Service) DeletePc(ctx context.Context, id string) (models.Pc, error) {
+	const op = "pcs-service.DeletePc"
+
+	resp, err := authorization.DoNewRequest[models.Pc](
+		ctx,
+		s.apiClient,
+		http.MethodDelete,
+		s.url(fmt.Sprintf("/pcs/%s", id)),
+		nil,
+	)
+	if err != nil {
+		return models.Pc{}, fmt.Errorf(
+			"%s: failed to do delete pc by id: %w",
+			op,
+			err,
+		)
+	}
+
+	if resp.Status != response.StatusOK {
+		return models.Pc{}, fmt.Errorf(
+			"%s: response status is not ok: %s",
+			op,
+			resp.Status,
+		)
+	}
+
+	return *resp.Data, nil
+}
+
+func (s *Service) GetPc(ctx context.Context, id string) (models.Pc, error) {
+	const op = "pcs-service.GetPc"
+
+	resp, err := authorization.DoNewRequest[models.Pc](
+		ctx,
+		s.apiClient,
+		http.MethodGet,
+		s.url(fmt.Sprintf("/pcs/%s", id)),
+		nil,
+	)
+	if err != nil {
+		return models.Pc{}, fmt.Errorf(
+			"%s: failed to do get pc by id: %w",
+			op,
+			err,
+		)
+	}
+
+	if resp.Status == response.StatusNotFound {
+		return models.Pc{}, services.ErrNotFound
+	}
+	if resp.Status != response.StatusOK {
+		return models.Pc{}, fmt.Errorf(
+			"%s: response status is not ok: %s",
+			op,
+			resp.Status,
+		)
+	}
+
+	return *resp.Data, nil
 }
 
 func (s *Service) GetCommands(ctx context.Context) ([]models.Command, error) {

@@ -3,7 +3,7 @@ module smart-pc-agent
 go 1.26
 
 require (
-	github.com/MaxRomanov007/smart-pc-go-lib v0.1.6
+	github.com/MaxRomanov007/smart-pc-go-lib v0.1.7
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/render v1.0.3
