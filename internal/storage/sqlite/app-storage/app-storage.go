@@ -14,6 +14,7 @@ import (
 
 const (
 	authTokenKey = "auth_token"
+	pcIDKey      = "pc_id"
 )
 
 type Storage struct {
@@ -55,6 +56,33 @@ func (s Storage) SetAuthToken(ctx context.Context, token *oauth2.Token) error {
 		Value: string(data),
 	}); err != nil {
 		return fmt.Errorf("%s: failed to set auth token: %w", op, err)
+	}
+
+	return nil
+}
+
+func (s Storage) GetPcID(ctx context.Context) (string, error) {
+	const op = "sqlite.app-storage.GetPcID"
+
+	data, err := s.queries.GetStorageValue(ctx, pcIDKey)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", storage.ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("%s: failed to get pc id: %w", op, err)
+	}
+
+	return data.Value, nil
+}
+
+func (s Storage) SetPcID(ctx context.Context, id string) error {
+	const op = "sqlite.app-storage.SetPcID"
+
+	if err := s.queries.SetStorageValue(ctx, dbqueries.SetStorageValueParams{
+		Key:   pcIDKey,
+		Value: id,
+	}); err != nil {
+		return fmt.Errorf("%s: failed to set pc id: %w", op, err)
 	}
 
 	return nil

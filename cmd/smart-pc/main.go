@@ -43,8 +43,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: make pc id dynamic
-	pcs, err := pcsService.New(ctx, auth, cfg.Services.Pcs, "683cb907-a746-4e94-9b92-a2ef0a500d90")
+	pcs, err := pcsService.New(ctx, auth, cfg.Services.Pcs, storage.AppStorage, storage.AppStorage)
 	if err != nil {
 		log.Error("failed to create pcs service", sl.Err(err))
 		os.Exit(1)
