@@ -6,4 +6,10 @@ WHERE id = $id;
 -- name: CreateCommand :one
 INSERT INTO commands(id, script)
 VALUES (?, ?)
-RETURNING *
+RETURNING *;
+
+-- name: DeleteCommand :one
+DELETE
+FROM commands
+WHERE id = @id
+RETURNING *;

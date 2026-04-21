@@ -7,3 +7,6 @@ WHERE command_id = $command_id;
 INSERT INTO command_params(command_id, name, type)
 VALUES ($command_id, $name, $type)
 RETURNING *;
+
+-- name: DeleteCommandParameters :exec
+DELETE FROM command_params WHERE command_id = @command_id

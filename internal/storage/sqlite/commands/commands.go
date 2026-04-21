@@ -111,6 +111,24 @@ func (s Storage) CreateCommand(
 	return mapStorageCommand(createdCommand), nil
 }
 
+func (s Storage) DeleteCommand(ctx context.Context, id string) (models.Command, error) {
+	const op = "sqlite.commands.GetCommandScript"
+
+	command, err := s.queries.DeleteCommand(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return models.Command{}, storage.ErrNotFound
+	}
+	if err != nil {
+		return models.Command{}, fmt.Errorf("%s: failed to delete command by id: %w", op, err)
+	}
+
+	if err := s.queries.DeleteCommandParameters(ctx, id); err != nil {
+		return models.Command{}, fmt.Errorf("%s: failed to delete command parameters: %w", op, err)
+	}
+
+	return mapStorageCommand(command), nil
+}
+
 func mapStorageCommand(command dbqueries.Command) models.Command {
 	return models.Command{
 		ID:     command.ID,

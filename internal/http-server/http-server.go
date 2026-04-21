@@ -9,6 +9,7 @@ import (
 	"smart-pc-agent/internal/config"
 	createCommand "smart-pc-agent/internal/http-server/handlers/commands/create-command"
 	getCommands "smart-pc-agent/internal/http-server/handlers/commands/get-commands"
+	deleteCommand "smart-pc-agent/internal/http-server/handlers/commands/id/delete-command"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 	"smart-pc-agent/internal/http-server/middlewares/request"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
@@ -53,6 +54,11 @@ func New(
 	)
 	r.With(request.New[createCommand.Request](log, v)).
 		Post("/commands", createCommand.New(log, service, service, storage.Commands))
+
+	r.Delete(
+		"/commands/{command_id}",
+		deleteCommand.New(log, storage.Commands, service, storage.Commands),
+	)
 
 	srv := &http.Server{
 		Addr:         cfg.Address,

@@ -296,6 +296,9 @@ func (s *Service) DeletePcCommand(ctx context.Context, id string) (models.Comman
 		)
 	}
 
+	if resp.Status == response.StatusNotFound {
+		return models.Command{}, services.ErrNotFound
+	}
 	if resp.Status != response.StatusOK {
 		return models.Command{}, fmt.Errorf(
 			"%s: response status is not ok: %s",
