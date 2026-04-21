@@ -1,9 +1,7 @@
 package pcsService
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -132,26 +130,15 @@ func (s *Service) pcCommandUrl(commandID, endpoint string) string {
 func (s *Service) CreatePc(ctx context.Context, pc models.Pc) (models.Pc, error) {
 	const op = "pcs-service.CreatePc"
 
-	pcJson, err := json.Marshal(pc)
-	if err != nil {
-		return models.Pc{}, fmt.Errorf("%s: failed to marshal new pc data: %w", op, err)
-	}
-
-	req, err := s.apiClient.NewRequest(
+	resp, err := authorization.DoNewRequest[models.Pc](
 		ctx,
+		s.apiClient,
 		http.MethodPost,
 		s.url("/pcs"),
-		bytes.NewReader(pcJson),
+		pc,
 	)
 	if err != nil {
-		return models.Pc{}, fmt.Errorf("%s: failed to create create pc request: %w", op, err)
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := authorization.DoRequest[models.Pc](s.apiClient, req)
-	if err != nil {
-		return models.Pc{}, fmt.Errorf("%s: failed to do create pc request: %w", op, err)
+		return models.Pc{}, fmt.Errorf("%s: failed to do request: %w", op, err)
 	}
 
 	if resp.Status != response.StatusOK {
@@ -262,6 +249,59 @@ func (s *Service) GetCommandParameters(
 
 	if resp.Status != response.StatusOK {
 		return nil, fmt.Errorf("%s: status is not OK: %s", op, resp.Status)
+	}
+
+	return *resp.Data, nil
+}
+
+func (s *Service) CreatePcCommand(
+	ctx context.Context,
+	command models.Command,
+) (models.Command, error) {
+	const op = "pcs-service.CreatePcCommand"
+
+	resp, err := authorization.DoNewRequest[models.Command](
+		ctx,
+		s.apiClient,
+		http.MethodPost,
+		s.pcURL("/commands"),
+		command,
+	)
+	if err != nil {
+		return models.Command{}, fmt.Errorf("%s: failed to do request: %w", op, err)
+	}
+
+	if resp.Status != response.StatusOK {
+		return models.Command{}, fmt.Errorf("%s: response status is not ok: %s", op, resp.Status)
+	}
+
+	return *resp.Data, nil
+}
+
+func (s *Service) DeletePcCommand(ctx context.Context, id string) (models.Command, error) {
+	const op = "pcs-service.DeletePcCommand"
+
+	resp, err := authorization.DoNewRequest[models.Command](
+		ctx,
+		s.apiClient,
+		http.MethodDelete,
+		s.pcCommandUrl(id, ""),
+		nil,
+	)
+	if err != nil {
+		return models.Command{}, fmt.Errorf(
+			"%s: failed to do delete pc command by id: %w",
+			op,
+			err,
+		)
+	}
+
+	if resp.Status != response.StatusOK {
+		return models.Command{}, fmt.Errorf(
+			"%s: response status is not ok: %s",
+			op,
+			resp.Status,
+		)
 	}
 
 	return *resp.Data, nil

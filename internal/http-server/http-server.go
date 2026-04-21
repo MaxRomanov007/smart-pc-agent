@@ -7,14 +7,19 @@ import (
 	"log/slog"
 	"net/http"
 	"smart-pc-agent/internal/config"
+	createCommand "smart-pc-agent/internal/http-server/handlers/commands/create-command"
 	getCommands "smart-pc-agent/internal/http-server/handlers/commands/get-commands"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
+	"smart-pc-agent/internal/http-server/middlewares/request"
+	pcsService "smart-pc-agent/internal/services/pcs-service"
+	"smart-pc-agent/internal/storage/sqlite"
 
 	mwLogger "smart-pc-agent/internal/http-server/middlewares/logger"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-playground/validator/v10"
 )
 
 type Server struct {
@@ -29,9 +34,8 @@ func New(
 	ctx context.Context,
 	log *slog.Logger,
 	cfg config.HTTPServer,
-	commandGetter getCommands.CommandGetter,
-	commandParametersGetter getCommands.CommandParametersGetter,
-	commandScriptGetter getCommands.CommandScriptGetter,
+	storage *sqlite.Storage,
+	service *pcsService.Service,
 ) *Server {
 	r := chi.NewRouter()
 	r.Use(
@@ -40,11 +44,15 @@ func New(
 		mwLogger.New(log),
 	)
 
+	v := validator.New()
+
 	r.Get("/health/stream", stream.New(log, ctx))
 	r.Get(
 		"/commands",
-		getCommands.New(log, commandGetter, commandParametersGetter, commandScriptGetter),
+		getCommands.New(log, service, service, storage.Commands),
 	)
+	r.With(request.New[createCommand.Request](log, v)).
+		Post("/commands", createCommand.New(log, service, service, storage.Commands))
 
 	srv := &http.Server{
 		Addr:         cfg.Address,

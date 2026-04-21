@@ -49,7 +49,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := httpServer.New(ctx, log, cfg.HTTPServer, pcs, pcs, storage.Commands)
+	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs)
 	go func() {
 		if err := srv.Run(ctx); err != nil {
 			log.Error("http server error", sl.Err(err))

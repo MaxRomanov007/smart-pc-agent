@@ -50,7 +50,7 @@ func New(ctx context.Context, log *slog.Logger, cfg config.Storage) (*Storage, e
 
 	return &Storage{
 		AppStorage:        appStorage.New(queries),
-		Commands:          commands.New(queries),
+		Commands:          commands.New(db),
 		CommandParameters: commandParameters.New(queries),
 	}, nil
 }
