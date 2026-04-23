@@ -309,3 +309,24 @@ func (s *Service) DeletePcCommand(ctx context.Context, id string) (models.Comman
 
 	return *resp.Data, nil
 }
+
+func (s *Service) UpdatePcCommand(ctx context.Context, command models.Command) (models.Command, error) {
+	const op = "pcs-service.UpdatePcCommand"
+
+	resp, err := authorization.DoNewRequest[models.Command](
+		ctx,
+		s.apiClient,
+		http.MethodPatch,
+		s.pcCommandUrl(command.ID, ""),
+		command,
+	)
+	if err != nil {
+		return models.Command{}, fmt.Errorf("%s: failed to do request: %w", op, err)
+	}
+
+	if resp.Status != response.StatusOK {
+		return models.Command{}, fmt.Errorf("%s: response status is not ok: %s", op, resp.Status)
+	}
+
+	return *resp.Data, nil
+}

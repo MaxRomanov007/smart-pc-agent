@@ -13,3 +13,9 @@ DELETE
 FROM commands
 WHERE id = @id
 RETURNING *;
+
+-- name: UpdateCommandScript :one
+UPDATE commands
+SET script = @script
+WHERE id = @id
+RETURNING *;
