@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/handlers/slogpretty"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
@@ -16,20 +17,8 @@ const (
 	envProd  = "production"
 )
 
-func MustSetupLogger(ctx context.Context, env string) *slog.Logger {
+func MustSetupLogger(ctx context.Context, env string, logPath string) *slog.Logger {
 	var log *slog.Logger
-
-	logFile, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
-	if err != nil {
-		panic(err)
-	}
-
-	go func() {
-		<-ctx.Done()
-		if err := logFile.Close(); err != nil {
-			log.Error("failed to close log file", sl.Err(err))
-		}
-	}()
 
 	switch env {
 	case envDev:
@@ -40,6 +29,21 @@ func MustSetupLogger(ctx context.Context, env string) *slog.Logger {
 			&slog.HandlerOptions{Level: slog.LevelDebug},
 		))
 	case envProd:
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			panic(fmt.Errorf("cannot create log directory: %w", err))
+		}
+		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
+		if err != nil {
+			panic(fmt.Errorf("failed to open log file: %s", err))
+		}
+
+		go func() {
+			<-ctx.Done()
+			if err := logFile.Close(); err != nil {
+				log.Error("failed to close log file", sl.Err(err))
+			}
+		}()
+
 		log = slog.New(slog.NewJSONHandler(
 			logFile,
 			&slog.HandlerOptions{Level: slog.LevelInfo},

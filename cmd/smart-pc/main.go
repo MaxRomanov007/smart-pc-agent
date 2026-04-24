@@ -29,7 +29,7 @@ func main() {
 
 	logCtx, cancelLogCtx := context.WithCancel(context.Background())
 	defer cancelLogCtx()
-	log := logger.MustSetupLogger(logCtx, cfg.Env)
+	log := logger.MustSetupLogger(logCtx, cfg.Env, cfg.LogPath)
 
 	log.Debug("debug messages are enabled")
 

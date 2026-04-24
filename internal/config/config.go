@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 type Config struct {
 	Env        string     `yaml:"env"         env-default:"production"`
+	LogPath    string     `yaml:"log_path"    env-default:"./data/log/log.log"`
 	HTTPServer HTTPServer `yaml:"http_server"`
 	Auth       Auth       `yaml:"auth"`
 	MQTT       MQTT       `yaml:"mqtt"`
@@ -63,29 +65,34 @@ type Storage struct {
 }
 
 type Services struct {
-	Pcs Service `yaml:"pcs"`
+	Pcs PcsService `yaml:"pcs"`
 }
 
-type Service struct {
+type PcsService struct {
 	Timeout time.Duration `yaml:"timeout"  env-default:"5s"`
-	BaseURL string        `yaml:"base_url" env-default:"http://localhost:8080"`
+	BaseURL string        `yaml:"base_url" env-default:"http://localhost:9080/pcs"`
 }
 
 func MustLoad() *Config {
 	configPath := os.Getenv("CONFIG_PATH")
+
 	if configPath == "" {
-		log.Fatal("CONFIG_PATH is not set")
+		cfg := &Config{}
+		if err := cleanenv.ReadEnv(cfg); err != nil {
+			log.Fatal(fmt.Errorf("failed to read config from env: %w", err))
+		}
+		return cfg
 	}
 
 	// check if file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		fullConfigPath, _ := filepath.Abs(configPath)
-		log.Fatalf("config file does not exists by path \"%s\"", fullConfigPath)
+		log.Fatalf("config file does not exists by path %q", fullConfigPath)
 	}
 
 	cfg := &Config{}
 	if err := cleanenv.ReadConfig(configPath, cfg); err != nil {
-		log.Fatalf("can not read config: %s", err)
+		log.Fatalf("can not read config from file: %s", err)
 	}
 
 	return cfg

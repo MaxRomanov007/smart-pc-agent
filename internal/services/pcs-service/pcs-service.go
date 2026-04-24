@@ -31,7 +31,7 @@ type PcIDSetter interface {
 func New(
 	ctx context.Context,
 	auth *authorization.Auth,
-	cfg config.Service,
+	cfg config.PcsService,
 	getter PcIDGetter,
 	setter PcIDSetter,
 ) (*Service, error) {
@@ -310,7 +310,10 @@ func (s *Service) DeletePcCommand(ctx context.Context, id string) (models.Comman
 	return *resp.Data, nil
 }
 
-func (s *Service) UpdatePcCommand(ctx context.Context, command models.Command) (models.Command, error) {
+func (s *Service) UpdatePcCommand(
+	ctx context.Context,
+	command models.Command,
+) (models.Command, error) {
 	const op = "pcs-service.UpdatePcCommand"
 
 	resp, err := authorization.DoNewRequest[models.Command](
