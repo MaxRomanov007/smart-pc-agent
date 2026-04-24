@@ -18,7 +18,7 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
-func startSendState(ctx context.Context, log *slog.Logger, conn *mqttAuth.Connection) {
+func startSendState(ctx context.Context, pcID string, log *slog.Logger, conn *mqttAuth.Connection) {
 	const op = "mqtt.sendState"
 
 	go func() {
@@ -51,7 +51,7 @@ func startSendState(ctx context.Context, log *slog.Logger, conn *mqttAuth.Connec
 				if _, err := conn.Publish(ctx, &paho.Publish{
 					QoS:     1,
 					Retain:  true,
-					Topic:   "pcs/hello/state",
+					Topic:   fmt.Sprintf("pcs/%s/state", pcID),
 					Payload: jsonMessage,
 				}); err != nil {
 					log.Warn("error occurred while sending state", sl.Err(err))
@@ -61,7 +61,7 @@ func startSendState(ctx context.Context, log *slog.Logger, conn *mqttAuth.Connec
 				if _, err := conn.Publish(ctx, &paho.Publish{
 					QoS:     1,
 					Retain:  true,
-					Topic:   "pcs/hello/status",
+					Topic:   fmt.Sprintf("pcs/%s/status", pcID),
 					Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"online\"}}"),
 				}); err != nil {
 					log.Warn("error occurred while sending status", sl.Err(err))

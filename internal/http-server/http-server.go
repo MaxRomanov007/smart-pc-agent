@@ -12,6 +12,7 @@ import (
 	deleteCommand "smart-pc-agent/internal/http-server/handlers/commands/id/delete-command"
 	updateCommand "smart-pc-agent/internal/http-server/handlers/commands/id/update-command"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
+	pcId "smart-pc-agent/internal/http-server/handlers/pc-id"
 	"smart-pc-agent/internal/http-server/middlewares/request"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
 	"smart-pc-agent/internal/storage/sqlite"
@@ -21,6 +22,7 @@ import (
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -44,10 +46,17 @@ func New(
 		middleware.RequestID,
 		middleware.Recoverer,
 		mwLogger.New(log),
+		cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+			AllowedHeaders: []string{"*"},
+			MaxAge:         300,
+		}),
 	)
 
 	v := validator.New()
 
+	r.Get("/pc-id", pcId.New(log, storage.AppStorage))
 	r.Get("/health/stream", stream.New(log, ctx))
 	r.Get(
 		"/commands",

@@ -1,11 +1,13 @@
 package logger
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/handlers/slogpretty"
+	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 )
 
 const (
@@ -14,8 +16,20 @@ const (
 	envProd  = "production"
 )
 
-func MustSetupLogger(env string) *slog.Logger {
+func MustSetupLogger(ctx context.Context, env string) *slog.Logger {
 	var log *slog.Logger
+
+	logFile, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		<-ctx.Done()
+		if err := logFile.Close(); err != nil {
+			log.Error("failed to close log file", sl.Err(err))
+		}
+	}()
 
 	switch env {
 	case envDev:
@@ -27,7 +41,7 @@ func MustSetupLogger(env string) *slog.Logger {
 		))
 	case envProd:
 		log = slog.New(slog.NewJSONHandler(
-			os.Stdout,
+			logFile,
 			&slog.HandlerOptions{Level: slog.LevelInfo},
 		))
 	default:

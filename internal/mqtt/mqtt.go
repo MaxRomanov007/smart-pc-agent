@@ -27,11 +27,16 @@ type MQTT struct {
 	Connection *mqttAuth.Connection
 }
 
+type PcIDGetter interface {
+	GetPcID(ctx context.Context) (string, error)
+}
+
 func New(
 	ctx context.Context,
 	log *slog.Logger,
 	mqttCfg config.MQTT,
 	auth *authorization.Auth,
+	pcIDGetter PcIDGetter,
 	commandGetter executeScript.CommandGetter,
 	commandParamsGetter executeScript.CommandParamsGetter,
 ) (*MQTT, error) {
@@ -47,7 +52,12 @@ func New(
 		return nil, fmt.Errorf("%s: failed to create mqtt connection: %w", op, err)
 	}
 
-	startSendState(ctx, log, connection)
+	pcID, err := pcIDGetter.GetPcID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to get pc id: %w", op, err)
+	}
+
+	startSendState(ctx, pcID, log, connection)
 
 	executor := commands.NewExecutor(connection, router)
 	executor.SetDefault(executeScript.New(log, commandGetter, commandParamsGetter))
@@ -59,9 +69,9 @@ func New(
 	executor.Set("prev-track", prevTrack.New(log))
 
 	if err := executor.StartListen(ctx, &commands.StartListenOptions{
-		CommandTopic:       "pcs/hello/command",
+		CommandTopic:       fmt.Sprintf("pcs/%s/command", pcID),
 		CommandMessageType: "command",
-		LogTopic:           "pcs/hello/log",
+		LogTopic:           fmt.Sprintf("pcs/%s/log", pcID),
 		LogMessageType:     "pc-command-log",
 		Log:                log,
 	}); err != nil {
