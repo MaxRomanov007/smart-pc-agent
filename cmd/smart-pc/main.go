@@ -45,6 +45,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	pcs, err := pcsService.New(ctx, auth, cfg.Services.Pcs, storage.AppStorage, storage.AppStorage)
+	if err != nil {
+		log.Error("failed to create pcs service", sl.Err(err))
+		os.Exit(1)
+	}
+
 	mqttConn, err := mqtt.New(
 		ctx,
 		log,
@@ -59,13 +65,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	pcs, err := pcsService.New(ctx, auth, cfg.Services.Pcs, storage.AppStorage, storage.AppStorage)
-	if err != nil {
-		log.Error("failed to create pcs service", sl.Err(err))
-		os.Exit(1)
-	}
-
-	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs)
+	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs, stop)
 	go func() {
 		if err := srv.Run(ctx); err != nil {
 			log.Error("http server error", sl.Err(err))

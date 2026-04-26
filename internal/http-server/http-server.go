@@ -11,6 +11,7 @@ import (
 	getCommands "smart-pc-agent/internal/http-server/handlers/commands/get-commands"
 	deleteCommand "smart-pc-agent/internal/http-server/handlers/commands/id/delete-command"
 	updateCommand "smart-pc-agent/internal/http-server/handlers/commands/id/update-command"
+	deleteThisPc "smart-pc-agent/internal/http-server/handlers/delete-this-pc"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 	pcId "smart-pc-agent/internal/http-server/handlers/pc-id"
 	"smart-pc-agent/internal/http-server/middlewares/request"
@@ -40,6 +41,7 @@ func New(
 	cfg config.HTTPServer,
 	storage *sqlite.Storage,
 	service *pcsService.Service,
+	stopApp func(),
 ) *Server {
 	r := chi.NewRouter()
 	r.Use(
@@ -74,6 +76,8 @@ func New(
 		"/commands/{command_id}",
 		updateCommand.New(log, storage.Commands, service),
 	)
+
+	r.Delete("/", deleteThisPc.New(log, storage.AppStorage, service, stopApp))
 
 	srv := &http.Server{
 		Addr:         cfg.Address,

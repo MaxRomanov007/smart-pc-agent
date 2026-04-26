@@ -20,15 +20,8 @@ const (
 func MustSetupLogger(ctx context.Context, env string, logPath string) *slog.Logger {
 	var log *slog.Logger
 
-	switch env {
-	case envDev:
-		log = setupPrettySlog()
-	case envDebug:
-		log = slog.New(slog.NewJSONHandler(
-			os.Stdout,
-			&slog.HandlerOptions{Level: slog.LevelDebug},
-		))
-	case envProd:
+	var logFile *os.File
+	if env == envProd || env == envDebug {
 		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 			panic(fmt.Errorf("cannot create log directory: %w", err))
 		}
@@ -43,7 +36,17 @@ func MustSetupLogger(ctx context.Context, env string, logPath string) *slog.Logg
 				log.Error("failed to close log file", sl.Err(err))
 			}
 		}()
+	}
 
+	switch env {
+	case envDev:
+		log = setupPrettySlog()
+	case envDebug:
+		log = slog.New(slog.NewJSONHandler(
+			logFile,
+			&slog.HandlerOptions{Level: slog.LevelDebug},
+		))
+	case envProd:
 		log = slog.New(slog.NewJSONHandler(
 			logFile,
 			&slog.HandlerOptions{Level: slog.LevelInfo},

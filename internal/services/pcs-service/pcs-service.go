@@ -166,6 +166,9 @@ func (s *Service) DeletePc(ctx context.Context, id string) (models.Pc, error) {
 		)
 	}
 
+	if resp.Status == response.StatusNotFound {
+		return models.Pc{}, services.ErrNotFound
+	}
 	if resp.Status != response.StatusOK {
 		return models.Pc{}, fmt.Errorf(
 			"%s: response status is not ok: %s",
@@ -332,4 +335,15 @@ func (s *Service) UpdatePcCommand(
 	}
 
 	return *resp.Data, nil
+}
+
+func (s *Service) DeleteThisPc(ctx context.Context) (models.Pc, error) {
+	const op = "pcs-service.DeletePcCommand"
+
+	deleted, err := s.DeletePc(ctx, s.pcID)
+	if err != nil {
+		return models.Pc{}, fmt.Errorf("%s: failed to delete this pc: %w", op, err)
+	}
+
+	return deleted, nil
 }

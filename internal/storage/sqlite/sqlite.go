@@ -42,7 +42,7 @@ func New(ctx context.Context, log *slog.Logger, cfg config.Storage) (*Storage, e
 		}
 	}()
 
-	if err := migrate(db, log, cfg.MigrationsPath); err != nil {
+	if err := migrate(db, ctx); err != nil {
 		return nil, fmt.Errorf("%s: failed to apply migrations: %w", op, err)
 	}
 

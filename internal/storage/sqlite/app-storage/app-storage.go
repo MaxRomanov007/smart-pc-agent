@@ -87,3 +87,13 @@ func (s Storage) SetPcID(ctx context.Context, id string) error {
 
 	return nil
 }
+
+func (s Storage) DeleteThisPc(ctx context.Context) error {
+	const op = "sqlite.app-storage.DeleteThisPc"
+
+	if err := s.queries.DeleteStorageValue(ctx, pcIDKey); err != nil {
+		return fmt.Errorf("%s: failed to delete pc id: %w", op, err)
+	}
+
+	return nil
+}

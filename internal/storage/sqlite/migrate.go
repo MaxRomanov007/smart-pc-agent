@@ -1,35 +1,36 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
-
-	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
-	"github.com/pressly/goose/v3"
 )
 
-type migrationLogger struct {
-	*slog.Logger
-}
+const script = `
+CREATE TABLE IF NOT EXISTS app_storage
+(
+    key   VARCHAR(255) PRIMARY KEY,
+    value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS commands
+(
+    id     TEXT PRIMARY KEY,
+    script VARCHAR(8192) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS command_params
+(
+    command_id TEXT         NOT NULL REFERENCES commands (id),
+    name       VARCHAR(255) NOT NULL,
+    type       SMALLINT     NOT NULL CHECK (type >= 1 AND type <= 3),
 
-func (m migrationLogger) Fatalf(format string, v ...any) {
-	m.Logger.Error(fmt.Sprintf(format, v...))
-}
+    PRIMARY KEY (command_id, name)
+);`
 
-func (m migrationLogger) Printf(format string, v ...any) {
-	m.Logger.Info(fmt.Sprintf(format, v...))
-}
-
-func migrate(db *sql.DB, log *slog.Logger, migrationsPath string) error {
+func migrate(db *sql.DB, ctx context.Context) (err error) {
 	const op = "storage.sqlite.migrate"
 
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		return fmt.Errorf("%s: failed to set goose dialect: %w", op, err)
-	}
-	goose.SetLogger(migrationLogger{log.With(sl.Op(op))})
-	if err := goose.Up(db, migrationsPath); err != nil {
-		return fmt.Errorf("%s: failed to apply migrations: %w", op, err)
+	if _, err := db.ExecContext(ctx, script); err != nil {
+		return fmt.Errorf("%s: failed to execute script: %w", op, err)
 	}
 
 	return nil

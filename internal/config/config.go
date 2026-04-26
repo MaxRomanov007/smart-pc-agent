@@ -60,8 +60,7 @@ type MQTT struct {
 }
 
 type Storage struct {
-	Path           string `yaml:"path"            env-default:"./data/storage/db.db"`
-	MigrationsPath string `yaml:"migrations_path" env-default:"./data/migrations/sqlite"`
+	Path string `yaml:"path" env-default:"./data/storage/db.db"`
 }
 
 type Services struct {
