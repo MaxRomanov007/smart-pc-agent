@@ -19,3 +19,8 @@ UPDATE commands
 SET script = @script
 WHERE id = @id
 RETURNING *;
+
+-- name: DeleteAllCommands :exec
+-- noinspection SqlWithoutWhere
+DELETE
+FROM commands

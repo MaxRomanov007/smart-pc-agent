@@ -18,7 +18,14 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 )
 
-func startSendState(ctx context.Context, pcID string, log *slog.Logger, conn *mqttAuth.Connection) {
+func startSendState(
+	ctx context.Context,
+	localCtx context.Context,
+	pcID string,
+	log *slog.Logger,
+	conn *mqttAuth.Connection,
+	stopConnection context.CancelFunc,
+) {
 	const op = "mqtt.sendState"
 
 	go func() {
@@ -32,6 +39,18 @@ func startSendState(ctx context.Context, pcID string, log *slog.Logger, conn *mq
 		for {
 			select {
 			case <-ctx.Done():
+				if _, err := conn.Publish(localCtx, &paho.Publish{
+					QoS:     1,
+					Retain:  true,
+					Topic:   fmt.Sprintf("pcs/%s/status", pcID),
+					Payload: []byte(`{"type":"pc-status","data":{"status":"offline"}}`),
+				}); err != nil {
+					log.Warn("error occurred while sending offline status", sl.Err(err))
+					return
+				}
+
+				log.Info("shutting down mqtt connection")
+				stopConnection()
 				return
 			case <-ticker.C:
 				state, err := getState()
@@ -48,7 +67,7 @@ func startSendState(ctx context.Context, pcID string, log *slog.Logger, conn *mq
 					log.Warn("error occurred while marshaling mqtt message", sl.Err(err))
 				}
 
-				if _, err := conn.Publish(ctx, &paho.Publish{
+				if _, err := conn.Publish(localCtx, &paho.Publish{
 					QoS:     1,
 					Retain:  true,
 					Topic:   fmt.Sprintf("pcs/%s/state", pcID),
@@ -58,11 +77,11 @@ func startSendState(ctx context.Context, pcID string, log *slog.Logger, conn *mq
 					continue
 				}
 
-				if _, err := conn.Publish(ctx, &paho.Publish{
+				if _, err := conn.Publish(localCtx, &paho.Publish{
 					QoS:     1,
 					Retain:  true,
 					Topic:   fmt.Sprintf("pcs/%s/status", pcID),
-					Payload: []byte("{\"type\":\"pc-status\",\"data\":{\"status\":\"online\"}}"),
+					Payload: []byte(`{"type":"pc-status","data":{"status":"online"}}`),
 				}); err != nil {
 					log.Warn("error occurred while sending status", sl.Err(err))
 					continue

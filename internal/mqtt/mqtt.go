@@ -42,22 +42,27 @@ func New(
 ) (*MQTT, error) {
 	const op = "mqtt.New"
 
-	mqttConnCfg, router, err := createMQTTConfig(ctx, mqttCfg, auth)
+	localCtx, cancel := context.WithCancel(context.Background())
+
+	mqttConnCfg, router, err := createMQTTConfig(localCtx, mqttCfg, auth)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("%s: failed to create mqtt config: %w", op, err)
 	}
 
-	connection, err := mqttAuth.NewConnection(ctx, mqttConnCfg)
+	connection, err := mqttAuth.NewConnection(localCtx, mqttConnCfg)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("%s: failed to create mqtt connection: %w", op, err)
 	}
 
-	pcID, err := pcIDGetter.GetPcID(ctx)
+	pcID, err := pcIDGetter.GetPcID(localCtx)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("%s: failed to get pc id: %w", op, err)
 	}
 
-	startSendState(ctx, pcID, log, connection)
+	startSendState(ctx, localCtx, pcID, log, connection, cancel)
 
 	executor := commands.NewExecutor(connection, router)
 	executor.SetDefault(executeScript.New(log, commandGetter, commandParamsGetter))
@@ -68,14 +73,15 @@ func New(
 	executor.Set("next-track", nextTrack.New(log))
 	executor.Set("prev-track", prevTrack.New(log))
 
-	if err := executor.StartListen(ctx, &commands.StartListenOptions{
+	if err := executor.StartListen(localCtx, &commands.StartListenOptions{
 		CommandTopic:       fmt.Sprintf("pcs/%s/command", pcID),
 		CommandMessageType: "command",
 		LogTopic:           fmt.Sprintf("pcs/%s/log", pcID),
 		LogMessageType:     "pc-command-log",
 		Log:                log,
 	}); err != nil {
-		panic(err)
+		cancel()
+		return nil, fmt.Errorf("%s: failed to start listening commands: %w", op, err)
 	}
 
 	return &MQTT{

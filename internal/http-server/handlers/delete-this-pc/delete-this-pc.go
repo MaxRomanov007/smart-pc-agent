@@ -20,10 +20,15 @@ type ServerPcDeleter interface {
 	DeleteThisPc(ctx context.Context) (models.Pc, error)
 }
 
+type DbCleaner interface {
+	CleanDb(ctx context.Context) error
+}
+
 func New(
 	log *slog.Logger,
 	localDeleter LocalPcDeleter,
 	serverDeleter ServerPcDeleter,
+	dbCleaner DbCleaner,
 	stopApp func(),
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +49,10 @@ func New(
 
 		log.Debug("successfully deleted pc")
 		render.JSON(w, r, response.OK[types.Nil](nil))
+
+		if err := dbCleaner.CleanDb(r.Context()); err != nil {
+			log.Error("failed to clean db", sl.Err(err))
+		}
 
 		log.Info("stopping application")
 		stopApp()

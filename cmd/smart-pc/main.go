@@ -64,6 +64,10 @@ func main() {
 		log.Error("failed to create mqtt connection", sl.Err(err))
 		os.Exit(1)
 	}
+	go func() {
+		<-mqttConn.Done()
+		log.Info("mqtt connection closed")
+	}()
 
 	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs, stop)
 	go func() {
@@ -98,7 +102,6 @@ func onTrayReady(ctx context.Context, log *slog.Logger) func() {
 			for {
 				select {
 				case <-ctx.Done():
-					log.Info("context canceled")
 					systray.Quit()
 					return
 				case <-mQuit.ClickedCh:

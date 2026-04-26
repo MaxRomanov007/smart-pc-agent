@@ -77,7 +77,7 @@ func New(
 		updateCommand.New(log, storage.Commands, service),
 	)
 
-	r.Delete("/", deleteThisPc.New(log, storage.AppStorage, service, stopApp))
+	r.Delete("/", deleteThisPc.New(log, storage.AppStorage, service, storage, stopApp))
 
 	srv := &http.Server{
 		Addr:         cfg.Address,

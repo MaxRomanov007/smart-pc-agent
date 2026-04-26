@@ -22,6 +22,7 @@ type Storage struct {
 	AppStorage        *appStorage.Storage
 	Commands          *commands.Storage
 	CommandParameters *commandParameters.Storage
+	queries           *dbqueries.Queries
 }
 
 func New(ctx context.Context, log *slog.Logger, cfg config.Storage) (*Storage, error) {
@@ -52,6 +53,7 @@ func New(ctx context.Context, log *slog.Logger, cfg config.Storage) (*Storage, e
 		AppStorage:        appStorage.New(queries),
 		Commands:          commands.New(db),
 		CommandParameters: commandParameters.New(queries),
+		queries:           queries,
 	}, nil
 }
 
@@ -80,6 +82,20 @@ func preventDatabaseFileCreated(path string) error {
 	}
 	if err != nil {
 		return fmt.Errorf("%s: failed to stat database file: %w", op, err)
+	}
+
+	return nil
+}
+
+func (s *Storage) CleanDb(ctx context.Context) error {
+	const op = "storage.sqlite.CleanDb"
+
+	if err := s.queries.DeleteAllCommands(ctx); err != nil {
+		return fmt.Errorf("%s: failed to delete all commands: %w", op, err)
+	}
+
+	if err := s.queries.DeleteAllParams(ctx); err != nil {
+		return fmt.Errorf("%s: failed to delete all parameters: %w", op, err)
 	}
 
 	return nil

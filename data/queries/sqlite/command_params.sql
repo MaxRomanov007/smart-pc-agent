@@ -11,10 +11,17 @@ ON CONFLICT(command_id, name)
 RETURNING *;
 
 -- name: DeleteCommandParameters :exec
-DELETE FROM command_params WHERE command_id = @command_id;
+DELETE
+FROM command_params
+WHERE command_id = @command_id;
 
 -- name: DeleteCommandParametersExceptNames :exec
 DELETE
 FROM command_params
 WHERE command_id = @command_id
   AND name NOT IN (sqlc.slice('names'));
+
+-- name: DeleteAllParams :exec
+-- noinspection SqlWithoutWhere
+DELETE
+FROM command_params
