@@ -10,8 +10,10 @@ import (
 	"smart-pc-agent/internal/config"
 	httpServer "smart-pc-agent/internal/http-server"
 	"smart-pc-agent/internal/lib/logger"
+	luaApi "smart-pc-agent/internal/lib/lua-api"
 	"smart-pc-agent/internal/lib/waitable"
 	"smart-pc-agent/internal/mqtt"
+	luaLog "smart-pc-agent/internal/mqtt/commands/lua-api/log"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
 	"smart-pc-agent/internal/storage/sqlite"
 	"syscall"
@@ -51,11 +53,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	registry := luaApi.NewRegistry("v0.0.0").
+		Register("log", luaLog.New(log))
+
 	mqttConn, err := mqtt.New(
 		ctx,
 		log,
 		cfg.MQTT,
 		auth,
+		registry,
 		storage.AppStorage,
 		storage.Commands,
 		storage.CommandParameters,
@@ -69,7 +75,7 @@ func main() {
 		log.Info("mqtt connection closed")
 	}()
 
-	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs, stop)
+	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs, registry, stop)
 	go func() {
 		if err := srv.Run(ctx); err != nil {
 			log.Error("http server error", sl.Err(err))

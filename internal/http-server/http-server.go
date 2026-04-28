@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"smart-pc-agent/internal/config"
+	"smart-pc-agent/internal/http-server/handlers/api/schema"
 	createCommand "smart-pc-agent/internal/http-server/handlers/commands/create-command"
 	getCommands "smart-pc-agent/internal/http-server/handlers/commands/get-commands"
 	deleteCommand "smart-pc-agent/internal/http-server/handlers/commands/id/delete-command"
@@ -15,6 +16,7 @@ import (
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 	pcId "smart-pc-agent/internal/http-server/handlers/pc-id"
 	"smart-pc-agent/internal/http-server/middlewares/request"
+	luaApi "smart-pc-agent/internal/lib/lua-api"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
 	"smart-pc-agent/internal/storage/sqlite"
 
@@ -41,6 +43,7 @@ func New(
 	cfg config.HTTPServer,
 	storage *sqlite.Storage,
 	service *pcsService.Service,
+	registry *luaApi.Registry,
 	stopApp func(),
 ) *Server {
 	r := chi.NewRouter()
@@ -78,6 +81,8 @@ func New(
 	)
 
 	r.Delete("/", deleteThisPc.New(log, storage.AppStorage, service, storage, stopApp))
+
+	r.Get("/api/schema", schema.New(log, registry))
 
 	srv := &http.Server{
 		Addr:         cfg.Address,

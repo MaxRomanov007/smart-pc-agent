@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"smart-pc-agent/internal/domain/models"
-	logLuaApi "smart-pc-agent/internal/mqtt/commands/lua-api/log"
+	luaApi "smart-pc-agent/internal/lib/lua-api"
 	"smart-pc-agent/internal/storage"
 	"strconv"
 
@@ -35,6 +35,7 @@ func New(
 	log *slog.Logger,
 	commandGetter CommandGetter,
 	paramsGetter CommandParamsGetter,
+	registry *luaApi.Registry,
 ) commands.CommandFunc {
 	return func(ctx context.Context, msg *message.Message) error {
 		const op = "commands.handlers.execute-script"
@@ -65,18 +66,31 @@ func New(
 			return commands.Error("failed to get message parameters")
 		}
 
-		l := lua.NewState(lua.Options{
-			SkipOpenLibs: true,
-		})
+		l := lua.NewState()
 		defer l.Close()
 
-		paramsTable := createParamsTable(log, l, scriptParams, messageParams)
-		l.SetGlobal("params", paramsTable)
+		spc := registry.BuildTable(l)
+		l.SetField(spc, "params", createParamsTable(log, l, scriptParams, messageParams))
+		l.SetGlobal("spc", spc)
 
-		apiTable := createApiTable(l, log)
-		l.SetGlobal("api", apiTable)
-
-		if err := l.DoString(command.Script); err != nil {
+		err = l.DoString(command.Script)
+		if apiErr, ok := errors.AsType[*lua.ApiError](err); ok {
+			switch apiErr.Type {
+			case lua.ApiErrorSyntax:
+				return commands.Error("syntax error: " + apiErr.Error())
+			case lua.ApiErrorFile:
+				return commands.Error("file error: " + apiErr.Error())
+			case lua.ApiErrorRun:
+				return commands.Error("run error: " + apiErr.Error())
+			case lua.ApiErrorError:
+				return commands.Error("error: " + apiErr.Error())
+			case lua.ApiErrorPanic:
+				return commands.Error("panic error: " + apiErr.Error())
+			default:
+				return commands.Error("api error: " + apiErr.Error())
+			}
+		}
+		if err != nil {
 			return fmt.Errorf("%s: failed to execute script: %w", op, err)
 		}
 
@@ -139,12 +153,4 @@ func createParamsTable(
 	}
 
 	return paramsTable
-}
-
-func createApiTable(l *lua.LState, log *slog.Logger) *lua.LTable {
-	apiTable := l.NewTable()
-
-	l.SetField(apiTable, "log", logLuaApi.New(l, log))
-
-	return apiTable
 }

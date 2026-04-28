@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"smart-pc-agent/internal/config"
+	luaApi "smart-pc-agent/internal/lib/lua-api"
 	"smart-pc-agent/internal/lib/random"
 	executeScript "smart-pc-agent/internal/mqtt/commands/handlers/execute-script"
 	"smart-pc-agent/internal/mqtt/commands/handlers/mute"
@@ -36,6 +37,7 @@ func New(
 	log *slog.Logger,
 	mqttCfg config.MQTT,
 	auth *authorization.Auth,
+	registry *luaApi.Registry,
 	pcIDGetter PcIDGetter,
 	commandGetter executeScript.CommandGetter,
 	commandParamsGetter executeScript.CommandParamsGetter,
@@ -65,7 +67,7 @@ func New(
 	startSendState(ctx, localCtx, pcID, log, connection, cancel)
 
 	executor := commands.NewExecutor(connection, router)
-	executor.SetDefault(executeScript.New(log, commandGetter, commandParamsGetter))
+	executor.SetDefault(executeScript.New(log, commandGetter, commandParamsGetter, registry))
 	executor.Set("mute", mute.New(log))
 	executor.Set("unmute", unmute.New(log))
 	executor.Set("set-volume", setVolume.New(log))

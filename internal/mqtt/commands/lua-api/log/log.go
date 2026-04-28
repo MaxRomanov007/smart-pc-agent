@@ -2,45 +2,98 @@ package log
 
 import (
 	"log/slog"
+	luaApi "smart-pc-agent/internal/lib/lua-api"
 
 	lua "github.com/yuin/gopher-lua"
 )
 
-func New(l *lua.LState, log *slog.Logger) lua.LValue {
-	table := l.NewTable()
-
-	l.SetField(table, "debug", logDebug(l, log))
-	l.SetField(table, "info", logInfo(l, log))
-	l.SetField(table, "warn", logWarn(l, log))
-	l.SetField(table, "error", logError(l, log))
-
-	return table
+type Module struct {
+	log *slog.Logger
 }
 
-func logDebug(l *lua.LState, log *slog.Logger) lua.LValue {
+func New(log *slog.Logger) *Module {
+	return &Module{log: log}
+}
+
+func (m *Module) Register(l *lua.LState, table *lua.LTable) {
+	l.SetField(table, "debug", m.logDebug(l))
+	l.SetField(table, "info", m.logInfo(l))
+	l.SetField(table, "warn", m.logWarn(l))
+	l.SetField(table, "error", m.logError(l))
+}
+
+func (m *Module) logDebug(l *lua.LState) lua.LValue {
 	return l.NewFunction(func(l *lua.LState) int {
-		log.Debug(l.Get(-1).String())
+		m.log.Debug(l.Get(-1).String())
 		return 0
 	})
 }
 
-func logInfo(l *lua.LState, log *slog.Logger) lua.LValue {
+func (m *Module) logInfo(l *lua.LState) lua.LValue {
 	return l.NewFunction(func(l *lua.LState) int {
-		log.Info(l.Get(-1).String())
+		m.log.Info(l.Get(-1).String())
 		return 0
 	})
 }
 
-func logWarn(l *lua.LState, log *slog.Logger) lua.LValue {
+func (m *Module) logWarn(l *lua.LState) lua.LValue {
 	return l.NewFunction(func(l *lua.LState) int {
-		log.Warn(l.Get(-1).String())
+		m.log.Warn(l.Get(-1).String())
 		return 0
 	})
 }
 
-func logError(l *lua.LState, log *slog.Logger) lua.LValue {
+func (m *Module) logError(l *lua.LState) lua.LValue {
 	return l.NewFunction(func(l *lua.LState) int {
-		log.Error(l.Get(-1).String())
+		m.log.Error(l.Get(-1).String())
 		return 0
 	})
+}
+
+func (m *Module) Doc() luaApi.ModuleDoc {
+	return luaApi.ModuleDoc{
+		Description: "logging",
+		Functions: map[string]luaApi.FunctionDoc{
+			"debug": {
+				Description: "debug level logging",
+				Params: []luaApi.ParamDoc{
+					{
+						Name:        "message",
+						Type:        luaApi.TypeString,
+						Description: "message text",
+					},
+				},
+			},
+			"info": {
+				Description: "info level logging",
+				Params: []luaApi.ParamDoc{
+					{
+						Name:        "message",
+						Type:        luaApi.TypeString,
+						Description: "message text",
+					},
+				},
+			},
+			"warn": {
+				Description: "warn level logging",
+				Params: []luaApi.ParamDoc{
+					{
+						Name:        "message",
+						Type:        luaApi.TypeString,
+						Description: "message text",
+					},
+				},
+			},
+			"error": {
+				Description: "error level logging",
+				Params: []luaApi.ParamDoc{
+					{
+						Name:        "message",
+						Type:        luaApi.TypeString,
+						Description: "message text",
+					},
+				},
+			},
+		},
+	}
 }
