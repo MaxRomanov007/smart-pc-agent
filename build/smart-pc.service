@@ -1,0 +1,17 @@
+[Unit]
+Description=Smart PC Agent
+After=network.target graphical-session.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/smart-pc
+Restart=on-failure
+RestartSec=5s
+Environment=HOME=/home/%i
+
+; трей-агент требует display — запуск от имени пользователя
+User=%i
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,84 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0
+    - sqlc generate
+    - go generate ./...
+
+builds:
+  - id: smart-pc
+    main: ./cmd/smart-pc
+    binary: smart-pc
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+    mod_timestamp: "{{.CommitTimestamp}}"
+    overrides:
+      - goos: windows
+        ldflags:
+          - -s -w -H windowsgui
+          - -X main.version={{.Version}}
+          - -X main.commit={{.Commit}}
+          - -X main.date={{.Date}}
+        goarch: amd64
+
+archives:
+  - name_template: "smart-pc_{{.Version}}_{{.Os}}_{{.Arch}}"
+    format_overrides:
+      - goos: windows
+        formats: [ zip ]
+    files:
+      - LICENSE
+      - README.md
+
+nfpms:
+  - package_name: smart-pc
+    vendor: YourCompany
+    homepage: https://github.com/yourorg/smart-pc
+    maintainer: You <you@example.com>
+    description: Smart PC tray agent
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: ./build/smart-pc.service
+        dst: /etc/systemd/system/smart-pc.service
+
+changelog:
+  sort: asc
+  use: git
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+
+release:
+  github:
+    owner: yourorg
+    name: smart-pc
+  prerelease: auto
+  draft: true
+
+checksum:
+  name_template: "checksums.txt"

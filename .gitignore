@@ -3,3 +3,5 @@ data/config/**
 data/storage/**
 data/log/**
 internal/storage/sqlite/dbqueries/**
+# Added by goreleaser init:
+dist/
