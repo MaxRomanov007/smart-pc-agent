@@ -28,11 +28,11 @@ type Storage struct {
 func New(ctx context.Context, log *slog.Logger, cfg config.Storage) (*Storage, error) {
 	const op = "storage.sqlite.New"
 
-	if err := preventDatabaseFileCreated(cfg.Path); err != nil {
+	if err := preventDatabaseFileCreated(string(cfg.Path)); err != nil {
 		return nil, fmt.Errorf("%s: failed to prevent database file created: %w", op, err)
 	}
 
-	db, err := sql.Open("sqlite3", cfg.Path)
+	db, err := sql.Open("sqlite3", string(cfg.Path))
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to connect to database: %w", op, err)
 	}

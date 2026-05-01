@@ -1,7 +1,4 @@
 .idea
-data/config/**
-data/storage/**
-data/log/**
-internal/storage/sqlite/dbqueries/**
-# Added by goreleaser init:
+data/config/
+internal/storage/sqlite/dbqueries/
 dist/

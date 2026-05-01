@@ -5,19 +5,20 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	userScope "smart-pc-agent/internal/lib/user-scope"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	Env        string     `yaml:"env"         env-default:"production"`
-	LogPath    string     `yaml:"log_path"    env-default:"./data/log/log.log"`
-	HTTPServer HTTPServer `yaml:"http_server"`
-	Auth       Auth       `yaml:"auth"`
-	MQTT       MQTT       `yaml:"mqtt"`
-	Storage    Storage    `yaml:"storage"`
-	Services   Services   `yaml:"services"`
+	Env        string              `yaml:"env"         env-default:"production"`
+	LogPath    userScope.CachePath `yaml:"log_path"    env-default:"log.log"`
+	HTTPServer HTTPServer          `yaml:"http_server"`
+	Auth       Auth                `yaml:"auth"`
+	MQTT       MQTT                `yaml:"mqtt"`
+	Storage    Storage             `yaml:"storage"`
+	Services   Services            `yaml:"services"`
 }
 
 type HTTPServer struct {
@@ -60,7 +61,7 @@ type MQTT struct {
 }
 
 type Storage struct {
-	Path string `yaml:"path" env-default:"./data/storage/db.db"`
+	Path userScope.CachePath `yaml:"path" env-default:"db.db"`
 }
 
 type Services struct {

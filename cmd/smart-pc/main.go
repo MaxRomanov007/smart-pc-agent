@@ -31,9 +31,11 @@ func main() {
 
 	logCtx, cancelLogCtx := context.WithCancel(context.Background())
 	defer cancelLogCtx()
-	log := logger.MustSetupLogger(logCtx, cfg.Env, cfg.LogPath)
+	log := logger.MustSetupLogger(logCtx, cfg.Env, string(cfg.LogPath))
 
 	log.Debug("debug messages are enabled")
+
+	go systray.Run(onTrayReady(ctx, log), onTrayExit(stop))
 
 	storage, err := sqlite.New(ctx, log, cfg.Storage)
 	if err != nil {
@@ -82,8 +84,6 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-
-	go systray.Run(onTrayReady(ctx, log), onTrayExit(stop))
 
 	waitable.WaitAll(mqttConn, srv)
 }
