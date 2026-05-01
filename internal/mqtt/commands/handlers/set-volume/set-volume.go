@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
-	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models/message"
+	commandMessage "github.com/MaxRomanov007/smart-pc-go-lib/domain/models/command-message"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/itchyny/volume-go"
 )
@@ -15,12 +15,12 @@ type Parameter struct {
 }
 
 func New(log *slog.Logger) commands.CommandFunc {
-	return func(ctx context.Context, msg *message.Message) error {
+	return func(ctx context.Context, msg *commandMessage.Message) error {
 		const op = "commands.handlers.set-volume"
 
 		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
 
-		parameter, err := message.Parameter[Parameter](msg)
+		parameter, err := commandMessage.Parameter[Parameter](msg)
 		if err != nil {
 			log.Warn(
 				"failed to parse message parameter",

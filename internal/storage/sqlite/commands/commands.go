@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"smart-pc-agent/internal/domain/models"
+	"smart-pc-agent/internal/lib/storage/transactions"
 	"smart-pc-agent/internal/storage"
 	"smart-pc-agent/internal/storage/sqlite/dbqueries"
+
+	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
+	"github.com/google/uuid"
 )
 
 type Storage struct {
@@ -30,13 +33,18 @@ func (s Storage) GetCommandById(ctx context.Context, id string) (models.Command,
 		return models.Command{}, fmt.Errorf("%s: failed to get command by id: %w", op, err)
 	}
 
-	return mapStorageCommand(command), nil
+	commandModel, err := mapStorageCommand(command)
+	if err != nil {
+		return models.Command{}, fmt.Errorf("%s: failed to map command: %w", op, err)
+	}
+
+	return commandModel, nil
 }
 
-func (s Storage) GetCommandScript(ctx context.Context, id string) (string, error) {
+func (s Storage) GetCommandScript(ctx context.Context, id uuid.UUID) (string, error) {
 	const op = "sqlite.commands.GetCommandScript"
 
-	command, err := s.queries.GetCommandById(ctx, id)
+	command, err := s.queries.GetCommandById(ctx, id.String())
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", storage.ErrNotFound
 	}
@@ -57,31 +65,12 @@ func (s Storage) CreateCommand(
 	if err != nil {
 		return models.Command{}, fmt.Errorf("%s: failed to begin transaction: %w", op, err)
 	}
-
-	defer func() {
-		if err != nil {
-			rollbackErr := tx.Rollback()
-			if rollbackErr != nil {
-				err = fmt.Errorf(
-					"%s: failed to rollback (error: %w), after operation failed (error: %w)",
-					op,
-					rollbackErr,
-					err,
-				)
-			}
-			return
-		}
-
-		commitErr := tx.Commit()
-		if commitErr != nil {
-			err = fmt.Errorf("%s: failed to commit transaction: %w", op, commitErr)
-		}
-	}()
+	defer transactions.Finish(tx, &err)
 
 	queries := dbqueries.New(tx)
 
 	createdCommand, err := queries.CreateCommand(ctx, dbqueries.CreateCommandParams{
-		ID:     command.ID,
+		ID:     command.ID.String(),
 		Script: command.Script,
 	})
 	if err != nil {
@@ -89,14 +78,23 @@ func (s Storage) CreateCommand(
 	}
 
 	if command.Parameters == nil {
-		return mapStorageCommand(createdCommand), nil
+		commandModel, err := mapStorageCommand(createdCommand)
+		if err != nil {
+			return models.Command{}, fmt.Errorf(
+				"%s: failed to map command on nil parameters: %w",
+				op,
+				err,
+			)
+		}
+
+		return commandModel, nil
 	}
 
 	for _, param := range command.Parameters {
 		_, err := queries.CreateOrUpdateCommandParameter(
 			ctx,
 			dbqueries.CreateOrUpdateCommandParameterParams{
-				CommandID: command.ID,
+				CommandID: command.ID.String(),
 				Name:      param.Name,
 				Type:      param.Type,
 			},
@@ -111,13 +109,18 @@ func (s Storage) CreateCommand(
 		}
 	}
 
-	return mapStorageCommand(createdCommand), nil
+	commandModel, err := mapStorageCommand(createdCommand)
+	if err != nil {
+		return models.Command{}, fmt.Errorf("%s: failed to map command: %w", op, err)
+	}
+
+	return commandModel, nil
 }
 
-func (s Storage) DeleteCommand(ctx context.Context, id string) (models.Command, error) {
+func (s Storage) DeleteCommand(ctx context.Context, id uuid.UUID) (models.Command, error) {
 	const op = "sqlite.commands.GetCommandScript"
 
-	command, err := s.queries.DeleteCommand(ctx, id)
+	command, err := s.queries.DeleteCommand(ctx, id.String())
 	if errors.Is(err, sql.ErrNoRows) {
 		return models.Command{}, storage.ErrNotFound
 	}
@@ -125,11 +128,16 @@ func (s Storage) DeleteCommand(ctx context.Context, id string) (models.Command, 
 		return models.Command{}, fmt.Errorf("%s: failed to delete command by id: %w", op, err)
 	}
 
-	if err := s.queries.DeleteCommandParameters(ctx, id); err != nil {
+	if err := s.queries.DeleteCommandParameters(ctx, id.String()); err != nil {
 		return models.Command{}, fmt.Errorf("%s: failed to delete command parameters: %w", op, err)
 	}
 
-	return mapStorageCommand(command), nil
+	commandModel, err := mapStorageCommand(command)
+	if err != nil {
+		return models.Command{}, fmt.Errorf("%s: failed to map command: %w", op, err)
+	}
+
+	return commandModel, nil
 }
 
 func (s Storage) UpdateCommand(
@@ -142,32 +150,13 @@ func (s Storage) UpdateCommand(
 	if err != nil {
 		return models.Command{}, fmt.Errorf("%s: failed to begin transaction: %w", op, err)
 	}
-
-	defer func() {
-		if err != nil {
-			rollbackErr := tx.Rollback()
-			if rollbackErr != nil {
-				err = fmt.Errorf(
-					"%s: failed to rollback (error: %w), after operation failed (error: %w)",
-					op,
-					rollbackErr,
-					err,
-				)
-			}
-			return
-		}
-
-		commitErr := tx.Commit()
-		if commitErr != nil {
-			err = fmt.Errorf("%s: failed to commit transaction: %w", op, commitErr)
-		}
-	}()
+	defer transactions.Finish(tx, &err)
 
 	queries := dbqueries.New(tx)
 
 	updatedCommand, err := queries.UpdateCommandScript(ctx, dbqueries.UpdateCommandScriptParams{
 		Script: command.Script,
-		ID:     command.ID,
+		ID:     command.ID.String(),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return models.Command{}, storage.ErrNotFound
@@ -187,7 +176,7 @@ func (s Storage) UpdateCommand(
 		storageParam, err := queries.CreateOrUpdateCommandParameter(
 			ctx,
 			dbqueries.CreateOrUpdateCommandParameterParams{
-				CommandID: command.ID,
+				CommandID: command.ID.String(),
 				Name:      param.Name,
 				Type:      param.Type,
 			},
@@ -202,13 +191,25 @@ func (s Storage) UpdateCommand(
 		}
 
 		newNames[i] = storageParam.Name
-		command.Parameters[i] = mapStorageCommandParam(storageParam)
+
+		paramModel, err := mapStorageCommandParam(storageParam)
+		if err != nil {
+			return models.Command{}, fmt.Errorf(
+				"%s: failed to parse command parameter (command_id=%s,name=%s): %w",
+				op,
+				param.CommandID,
+				param.Name,
+				err,
+			)
+		}
+
+		command.Parameters[i] = paramModel
 	}
 
 	if err := queries.DeleteCommandParametersExceptNames(
 		ctx,
 		dbqueries.DeleteCommandParametersExceptNamesParams{
-			CommandID: command.ID,
+			CommandID: command.ID.String(),
 			Names:     newNames,
 		},
 	); err != nil {
@@ -218,17 +219,39 @@ func (s Storage) UpdateCommand(
 	return command, nil
 }
 
-func mapStorageCommand(command dbqueries.Command) models.Command {
-	return models.Command{
-		ID:     command.ID,
-		Script: command.Script,
+func mapStorageCommand(command dbqueries.Command) (models.Command, error) {
+	const op = "sqlite.commands.mapStorageCommand"
+
+	commandUUID, err := uuid.Parse(command.ID)
+	if err != nil {
+		return models.Command{}, fmt.Errorf(
+			"%s: failed to parse command uuid: %w",
+			op,
+			err,
+		)
 	}
+
+	return models.Command{
+		ID:     &commandUUID,
+		Script: command.Script,
+	}, nil
 }
 
-func mapStorageCommandParam(param dbqueries.CommandParam) models.CommandParameter {
+func mapStorageCommandParam(param dbqueries.CommandParam) (models.CommandParameter, error) {
+	const op = "sqlite.commands.mapStorageCommandParam"
+
+	commandUUID, err := uuid.Parse(param.CommandID)
+	if err != nil {
+		return models.CommandParameter{}, fmt.Errorf(
+			"%s: failed to parse command uuid: %w",
+			op,
+			err,
+		)
+	}
+
 	return models.CommandParameter{
-		CommandID: param.CommandID,
+		CommandID: commandUUID,
 		Name:      param.Name,
 		Type:      param.Type,
-	}
+	}, nil
 }

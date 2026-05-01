@@ -15,14 +15,15 @@ import (
 	deleteThisPc "smart-pc-agent/internal/http-server/handlers/delete-this-pc"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 	pcId "smart-pc-agent/internal/http-server/handlers/pc-id"
-	"smart-pc-agent/internal/http-server/middlewares/request"
+	"smart-pc-agent/internal/http-server/middlewares/uuidmw/commands"
 	luaApi "smart-pc-agent/internal/lib/lua-api"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
 	"smart-pc-agent/internal/storage/sqlite"
 
-	mwLogger "smart-pc-agent/internal/http-server/middlewares/logger"
-
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
+	"github.com/MaxRomanov007/smart-pc-go-lib/middlewares/logmw"
+	"github.com/MaxRomanov007/smart-pc-go-lib/middlewares/reqmw"
+	jsonTagName "github.com/MaxRomanov007/smart-pc-go-lib/validator/tag-names/json-tag-name"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -50,7 +51,7 @@ func New(
 	r.Use(
 		middleware.RequestID,
 		middleware.Recoverer,
-		mwLogger.New(log),
+		logmw.New(log),
 		cors.Handler(cors.Options{
 			AllowedOrigins: []string{"*"},
 			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
@@ -60,29 +61,26 @@ func New(
 	)
 
 	v := validator.New()
-
-	r.Get("/pc-id", pcId.New(log, storage.AppStorage))
-	r.Get("/health/stream", stream.New(log, ctx))
-	r.Get(
-		"/commands",
-		getCommands.New(log, service, service, storage.Commands),
-	)
-	r.With(request.New[createCommand.Request](log, v)).
-		Post("/commands", createCommand.New(log, service, service, storage.Commands))
-
-	r.Delete(
-		"/commands/{command_id}",
-		deleteCommand.New(log, storage.Commands, service, storage.Commands),
-	)
-
-	r.With(request.New[updateCommand.Request](log, v)).Patch(
-		"/commands/{command_id}",
-		updateCommand.New(log, storage.Commands, service),
-	)
+	v.RegisterTagNameFunc(jsonTagName.New())
 
 	r.Delete("/", deleteThisPc.New(log, storage.AppStorage, service, storage, stopApp))
-
+	r.Get("/pc-id", pcId.New(log, storage.AppStorage))
+	r.Get("/health/stream", stream.New(log, ctx))
 	r.Get("/api/schema", schema.New(log, registry))
+
+	r.Route("/commands", func(r chi.Router) {
+		r.Get("/", getCommands.New(log, service, service, storage.Commands))
+		r.With(reqmw.New[createCommand.Request](log, v)).
+			Post("/", createCommand.New(log, service, service, storage.Commands))
+
+		r.Route(fmt.Sprintf("/{%s}", commands.CommandIDURLParam), func(r chi.Router) {
+			r.Use(commands.NewMiddleware(log))
+
+			r.Delete("/", deleteCommand.New(log, storage.Commands, service, storage.Commands))
+			r.With(reqmw.New[updateCommand.Request](log, v)).
+				Patch("/", updateCommand.New(log, storage.Commands, service))
+		})
+	})
 
 	srv := &http.Server{
 		Addr:         cfg.Address,

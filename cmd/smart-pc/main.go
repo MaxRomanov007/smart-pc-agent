@@ -11,7 +11,6 @@ import (
 	httpServer "smart-pc-agent/internal/http-server"
 	"smart-pc-agent/internal/lib/logger"
 	luaApi "smart-pc-agent/internal/lib/lua-api"
-	"smart-pc-agent/internal/lib/waitable"
 	"smart-pc-agent/internal/mqtt"
 	luaLog "smart-pc-agent/internal/mqtt/commands/lua-api/log"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/cross-platform/browser"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
+	"github.com/MaxRomanov007/smart-pc-go-lib/waitable"
 	"github.com/getlantern/systray"
 )
 

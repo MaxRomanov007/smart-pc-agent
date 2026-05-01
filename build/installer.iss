@@ -67,26 +67,12 @@ Root: HKLM; Subkey: "Software\SmartPC"; \
 
 [Run]
 Filename: "{app}\smart-pc.exe"; \
-  Description: "Запустить Smart PC Agent"; \
+  Description: "{cm:RunDescription}"; \
   Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "taskkill"; Parameters: "/F /IM smart-pc.exe"; \
   Flags: runhidden skipifdoesntexist
 
-[Code]
-function InitializeSetup(): Boolean;
-var
-  ResultCode: Integer;
-begin
-  if CheckForMutexes('SmartPCAgentMutex') then begin
-    if MsgBox(CustomMessage('MsgAppRunning'), mbConfirmation, MB_YESNO) = IDYES then begin
-      Exec('taskkill', '/F /IM smart-pc.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Sleep(1000);
-    end else begin
-      Result := False;
-      Exit;
-    end;
-  end;
-  Result := True;
-end;
+[UninstallDelete]
+Type: filesandordirs; Name: "{localappdata}\smart-pc"

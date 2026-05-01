@@ -5,9 +5,9 @@ import (
 	"go/types"
 	"log/slog"
 	"net/http"
-	"smart-pc-agent/internal/domain/models"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/api/response"
+	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/go-chi/render"
 )

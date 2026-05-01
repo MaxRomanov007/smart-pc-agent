@@ -6,13 +6,13 @@ import (
 	"go/types"
 	"log/slog"
 	"net/http"
-	"smart-pc-agent/internal/domain/models"
-	"smart-pc-agent/internal/http-server/middlewares/request"
+	"smart-pc-agent/internal/http-server/middlewares/uuidmw/commands"
 	"smart-pc-agent/internal/storage"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/api/response"
+	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
-	"github.com/go-chi/chi/v5"
+	"github.com/MaxRomanov007/smart-pc-go-lib/middlewares/reqmw"
 	"github.com/go-chi/render"
 )
 
@@ -46,14 +46,8 @@ func New(
 		const op = "http-server.handlers.commands.get-commands"
 		log := log.With(sl.Op(op), sl.ReqID(r))
 
-		commandID := chi.URLParam(r, "command_id")
-		if commandID == "" {
-			log.Warn("missing command id")
-			render.JSON(w, r, response.BadRequest("missing command id"))
-			return
-		}
-
-		req := request.MustGet[Request](r)
+		commandID := commands.MustCommandID(r)
+		req := reqmw.MustGet[Request](r)
 
 		parameters := make([]models.CommandParameter, len(req.Parameters))
 		for i, p := range req.Parameters {
@@ -65,7 +59,7 @@ func New(
 		}
 
 		command := models.Command{
-			ID:          commandID,
+			ID:          &commandID,
 			Name:        req.Name,
 			Description: req.Description,
 			Script:      req.Script,

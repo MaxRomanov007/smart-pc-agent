@@ -3,7 +3,7 @@ module smart-pc-agent
 go 1.26
 
 require (
-	github.com/MaxRomanov007/smart-pc-go-lib v0.1.9
+	github.com/MaxRomanov007/smart-pc-go-lib v1.0.7
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/getlantern/systray v1.2.2
 	github.com/go-chi/chi/v5 v5.2.5
@@ -37,6 +37,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

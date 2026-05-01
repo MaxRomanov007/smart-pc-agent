@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"smart-pc-agent/internal/config"
-	"smart-pc-agent/internal/domain/models"
 	"smart-pc-agent/internal/services"
 	"smart-pc-agent/internal/storage"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/api/response"
 	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
+	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
+	"github.com/google/uuid"
 )
 
 type Service struct {
@@ -97,9 +98,9 @@ func (s *Service) createAndSaveNewPc(ctx context.Context, setter PcIDSetter) err
 		return fmt.Errorf("%s: failed to create new pc: %w", op, err)
 	}
 
-	saveErr := setter.SetPcID(ctx, newPc.ID)
+	saveErr := setter.SetPcID(ctx, newPc.ID.String())
 	if saveErr != nil {
-		if _, err := s.DeletePc(ctx, newPc.ID); err != nil {
+		if _, err := s.DeletePc(ctx, newPc.ID.String()); err != nil {
 			return fmt.Errorf(
 				"%s: failed to delete saved pc (error: %w) after save pc id failed (error: %w)",
 				op,
@@ -111,7 +112,7 @@ func (s *Service) createAndSaveNewPc(ctx context.Context, setter PcIDSetter) err
 		return fmt.Errorf("%s: failed to save pc id: %w", op, saveErr)
 	}
 
-	s.pcID = newPc.ID
+	s.pcID = newPc.ID.String()
 	return nil
 }
 
@@ -123,8 +124,8 @@ func (s *Service) pcURL(endpoint string) string {
 	return s.url(fmt.Sprintf("/pcs/%s%s", s.pcID, endpoint))
 }
 
-func (s *Service) pcCommandUrl(commandID, endpoint string) string {
-	return s.pcURL(fmt.Sprintf("/commands/%s%s", commandID, endpoint))
+func (s *Service) pcCommandUrl(commandID uuid.UUID, endpoint string) string {
+	return s.pcURL(fmt.Sprintf("/commands/%s%s", commandID.String(), endpoint))
 }
 
 func (s *Service) CreatePc(ctx context.Context, pc models.Pc) (models.Pc, error) {
@@ -235,7 +236,7 @@ func (s *Service) GetCommands(ctx context.Context) ([]models.Command, error) {
 
 func (s *Service) GetCommandParameters(
 	ctx context.Context,
-	id string,
+	id uuid.UUID,
 ) ([]models.CommandParameter, error) {
 	const op = "pcs-service.GetCommandParameters"
 
@@ -281,7 +282,7 @@ func (s *Service) CreatePcCommand(
 	return *resp.Data, nil
 }
 
-func (s *Service) DeletePcCommand(ctx context.Context, id string) (models.Command, error) {
+func (s *Service) DeletePcCommand(ctx context.Context, id uuid.UUID) (models.Command, error) {
 	const op = "pcs-service.DeletePcCommand"
 
 	resp, err := authorization.DoNewRequest[models.Command](
@@ -323,7 +324,7 @@ func (s *Service) UpdatePcCommand(
 		ctx,
 		s.apiClient,
 		http.MethodPatch,
-		s.pcCommandUrl(command.ID, ""),
+		s.pcCommandUrl(*command.ID, ""),
 		command,
 	)
 	if err != nil {

@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"smart-pc-agent/internal/domain/models"
 	luaApi "smart-pc-agent/internal/lib/lua-api"
 	"smart-pc-agent/internal/storage"
 	"strconv"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
-	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models/message"
+	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
+	commandMessage "github.com/MaxRomanov007/smart-pc-go-lib/domain/models/command-message"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
+	"github.com/google/uuid"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -28,7 +29,7 @@ type CommandGetter interface {
 }
 
 type CommandParamsGetter interface {
-	GetCommandParams(ctx context.Context, commandId string) ([]models.CommandParameter, error)
+	GetCommandParams(ctx context.Context, commandId uuid.UUID) ([]models.CommandParameter, error)
 }
 
 func New(
@@ -37,7 +38,7 @@ func New(
 	paramsGetter CommandParamsGetter,
 	registry *luaApi.Registry,
 ) commands.CommandFunc {
-	return func(ctx context.Context, msg *message.Message) error {
+	return func(ctx context.Context, msg *commandMessage.Message) error {
 		const op = "commands.handlers.execute-script"
 
 		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
@@ -51,12 +52,12 @@ func New(
 			return fmt.Errorf("%s: failed to get script: %w", op, err)
 		}
 
-		scriptParams, err := paramsGetter.GetCommandParams(ctx, command.ID)
+		scriptParams, err := paramsGetter.GetCommandParams(ctx, *command.ID)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("%s: failed to get script: %w", op, err)
 		}
 
-		messageParams, err := message.Parameter[map[string]string](msg)
+		messageParams, err := commandMessage.Parameter[map[string]string](msg)
 		if err != nil {
 			log.Warn(
 				"failed to parse message parameters",

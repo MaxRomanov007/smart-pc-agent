@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	userScope "smart-pc-agent/internal/lib/user-scope"
 	"time"
 
+	userScope "github.com/MaxRomanov007/smart-pc-go-lib/user-scope"
 	"github.com/ilyakaznacheev/cleanenv"
 )
 

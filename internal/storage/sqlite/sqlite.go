@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"smart-pc-agent/data/schema"
 	"smart-pc-agent/internal/config"
 	appStorage "smart-pc-agent/internal/storage/sqlite/app-storage"
 	commandParameters "smart-pc-agent/internal/storage/sqlite/command-parameters"
@@ -96,6 +97,16 @@ func (s *Storage) CleanDb(ctx context.Context) error {
 
 	if err := s.queries.DeleteAllParams(ctx); err != nil {
 		return fmt.Errorf("%s: failed to delete all parameters: %w", op, err)
+	}
+
+	return nil
+}
+
+func migrate(db *sql.DB, ctx context.Context) (err error) {
+	const op = "storage.sqlite.migrate"
+
+	if _, err := db.ExecContext(ctx, schema.GetSchemaScript()); err != nil {
+		return fmt.Errorf("%s: failed to execute script: %w", op, err)
 	}
 
 	return nil

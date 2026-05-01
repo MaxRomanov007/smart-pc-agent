@@ -5,22 +5,23 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"smart-pc-agent/internal/domain/models"
+	"smart-pc-agent/internal/http-server/middlewares/uuidmw/commands"
 	"smart-pc-agent/internal/services"
 	"smart-pc-agent/internal/storage"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/api/response"
+	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 )
 
 type LocalCommandDeleter interface {
-	DeleteCommand(ctx context.Context, id string) (models.Command, error)
+	DeleteCommand(ctx context.Context, id uuid.UUID) (models.Command, error)
 }
 
 type ServerCommandDeleter interface {
-	DeletePcCommand(ctx context.Context, id string) (models.Command, error)
+	DeletePcCommand(ctx context.Context, id uuid.UUID) (models.Command, error)
 }
 
 type LocalCommandCreator interface {
@@ -37,12 +38,7 @@ func New(
 		const op = "http-server.handlers.commands.get-commands"
 		log := log.With(sl.Op(op), sl.ReqID(r))
 
-		commandID := chi.URLParam(r, "command_id")
-		if commandID == "" {
-			log.Warn("missing command id")
-			render.JSON(w, r, response.BadRequest("missing command id"))
-			return
-		}
+		commandID := commands.MustCommandID(r)
 
 		deleted, err := localDeleter.DeleteCommand(r.Context(), commandID)
 		if errors.Is(err, storage.ErrNotFound) {

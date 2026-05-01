@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
-	mqttMessage "smart-pc-agent/internal/domain/models/mqtt-message"
 	"time"
 
+	mqttMessage "github.com/MaxRomanov007/smart-pc-go-lib/domain/models/mqtt-message"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	mqttAuth "github.com/MaxRomanov007/smart-pc-go-lib/mqtt-auth"
 	"github.com/eclipse/paho.golang/paho"

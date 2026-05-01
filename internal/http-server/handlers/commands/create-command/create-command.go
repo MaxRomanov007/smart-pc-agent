@@ -5,12 +5,13 @@ import (
 	"go/types"
 	"log/slog"
 	"net/http"
-	"smart-pc-agent/internal/domain/models"
-	"smart-pc-agent/internal/http-server/middlewares/request"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/api/response"
+	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
+	"github.com/MaxRomanov007/smart-pc-go-lib/middlewares/reqmw"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 )
 
 type RequestParameter struct {
@@ -31,7 +32,7 @@ type CommandServerSaver interface {
 }
 
 type CommandServerDeleter interface {
-	DeletePcCommand(ctx context.Context, id string) (models.Command, error)
+	DeletePcCommand(ctx context.Context, id uuid.UUID) (models.Command, error)
 }
 
 type CommandLocalSaver interface {
@@ -48,7 +49,7 @@ func New(
 		const op = "http-server.handlers.commands.create-command"
 		log := log.With(sl.Op(op), sl.ReqID(r))
 
-		req := request.MustGet[Request](r)
+		req := reqmw.MustGet[Request](r)
 
 		parameters := make([]models.CommandParameter, len(req.Parameters))
 		for i, p := range req.Parameters {
@@ -81,7 +82,7 @@ func New(
 		if err != nil {
 			if _, deleteErr := serverDeleter.DeletePcCommand(
 				r.Context(),
-				command.ID,
+				*command.ID,
 			); deleteErr != nil {
 				log.Error(
 					"failed to delete command from server after local save failed",
