@@ -2,13 +2,12 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: [ "v*" ]
 
 permissions:
   contents: write
 
 jobs:
-  # Каждая платформа собирается на своём runner'е
   build:
     strategy:
       matrix:
@@ -18,15 +17,15 @@ jobs:
             goarch: amd64
             cc: gcc
 
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             goos: linux
             goarch: arm64
-            cc: aarch64-linux-gnu-gcc  # кросс-компилятор, но linux→linux ок
+            cc: gcc
 
           - os: windows-latest
             goos: windows
             goarch: amd64
-            cc: gcc  # mingw встроен в windows runner
+            cc: gcc
 
           - os: macos-latest
             goos: darwin
@@ -41,28 +40,33 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6.4.0
         with:
-          go-version: "1.23"
+          go-version: "1.26"
 
       - name: Install sqlc
-        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0
+        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
-      - name: Install ARM64 cross-compiler (Linux only)
-        if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'arm64'
-        run: sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Install Linux dependencies
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libayatana-appindicator3-dev \
+            libgtk-3-dev \
+            pkg-config
 
       - name: Generate and build
+        shell: bash
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
+          CGO_ENABLED: "1"
           CC: ${{ matrix.cc }}
-        shell: bash
         run: |
           sqlc generate
           go generate ./...
@@ -80,21 +84,59 @@ jobs:
             -o dist/smart-pc-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} \
             ./cmd/smart-pc
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Package binary
+        shell: bash
+        run: |
+          cd dist
+          NAME="smart-pc-${{ matrix.goos }}-${{ matrix.goarch }}"
+          
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            7z a ${NAME}.zip ${NAME}.exe
+            rm ${NAME}.exe
+          else
+            tar -czf ${NAME}.tar.gz ${NAME}
+            rm ${NAME}
+          fi
+
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/
 
-  # После сборки всех бинарей — создаём релиз
-  release:
+  windows-installer:
     needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          name: binary-windows-amd64
+          path: dist/
+
+      - name: Extract and rename binary for Inno Setup
+        shell: bash
+        run: |
+          7z e dist/smart-pc-windows-amd64.zip -odist/ smart-pc-windows-amd64.exe
+          mv dist/smart-pc-windows-amd64.exe dist/smart-pc.exe
+
+      - name: Build Inno Setup installer
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          iscc /DMyAppVersion=$version build\installer.iss
+
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: windows-installer
+          path: build/Output/smart-pc-agent-setup-*.exe
+
+  release:
+    needs: [build, windows-installer]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
-      - name: Download all binaries
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8.0.1
         with:
           path: dist/
           merge-multiple: true
@@ -102,37 +144,11 @@ jobs:
       - name: Create checksums
         run: |
           cd dist
-          sha256sum * > checksums.txt
+          sha256sum smart-pc-* > checksums.txt
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3.0.0
         with:
           files: dist/*
-          generate_release_notes: true  # changelog из PR и коммитов
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Отдельный job для Windows UI-инсталлятора
-  windows-installer:
-    needs: build
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download Windows binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-windows-amd64
-          path: dist/
-
-      - name: Build Inno Setup
-        run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
-          iscc /DMyAppVersion=$version build\installer.iss
-
-      - name: Upload installer
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/Output/SmartPC-Setup-*.exe
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

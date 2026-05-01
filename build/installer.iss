@@ -1,24 +1,20 @@
 [Setup]
 AppName=Smart PC Agent
-AppVersion={#MyAppVersion}          ; передаётся из CI: iscc /DMyAppVersion=1.2.3
-AppPublisher=YourCompany
-AppPublisherURL=https://github.com/yourorg/smart-pc
-AppSupportURL=https://github.com/yourorg/smart-pc/issues
-AppUpdatesURL=https://github.com/yourorg/smart-pc/releases
-
-DefaultDirName={autopf}\SmartPC       ; C:\Program Files\SmartPC
+AppVersion={#MyAppVersion}
+AppPublisher=MaxRomanov007
+AppPublisherURL=https://github.com/MaxRomanov007/smart-pc
+AppSupportURL=https://github.com/MaxRomanov007/smart-pc/issues
+AppUpdatesURL=https://github.com/MaxRomanov007/smart-pc/releases
+DefaultDirName={autopf}\SmartPC
 DefaultGroupName=Smart PC Agent
-DisableProgramGroupPage=yes           ; не спрашивать про папку в меню Пуск
-
+DisableProgramGroupPage=yes
 OutputDir=Output
-OutputBaseFilename=SmartPC-Setup-{#MyAppVersion}
-
-SetupIconFile=..\data\assets\icon.ico       ; иконка инсталлятора
-WizardStyle=modern                    ; современный вид (vs classic)
-
+OutputBaseFilename=smart-pc-agent-setup-v{#MyAppVersion}
+SetupIconFile=..\data\assets\icon.ico
+WizardStyle=modern
 Compression=lzma2/ultra64
 SolidCompression=yes
-PrivilegesRequired=admin              ; нужен UAC для установки в Program Files
+PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
@@ -26,59 +22,65 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
+[CustomMessages]
+english.TaskAutoStartDesc=Run at Windows startup
+russian.TaskAutoStartDesc=Запускать при старте Windows
+
+english.TasksGroupDesc=Additional options:
+russian.TasksGroupDesc=Дополнительные параметры:
+
+english.TaskDesktopIconDesc=Create a desktop shortcut
+russian.TaskDesktopIconDesc=Создать ярлык на рабочем столе
+
+english.UninstallShortcutName=Uninstall Smart PC
+russian.UninstallShortcutName=Удалить Smart PC
+
+english.RunDescription=Launch Smart PC Agent
+russian.RunDescription=Запустить Smart PC Agent
+
+english.MsgAppRunning=Smart PC Agent is currently running. Stop it to proceed with the update?
+russian.MsgAppRunning=Smart PC Agent сейчас работает. Остановить для обновления?
+
 [Tasks]
-; Галочки которые видит пользователь на шаге "Select Additional Tasks"
-Name: "autostart";  Description: "Запускать при старте Windows"; \
-  GroupDescription: "Дополнительные параметры:"; Flags: checkedonce
-Name: "desktopicon"; Description: "Создать ярлык на рабочем столе"; \
-  GroupDescription: "Дополнительные параметры:"; Flags: unchecked
+Name: "autostart";   Description: "{cm:TaskAutoStartDesc}";   GroupDescription: "{cm:TasksGroupDesc}"; Flags: checkedonce
+Name: "desktopicon"; Description: "{cm:TaskDesktopIconDesc}"; GroupDescription: "{cm:TasksGroupDesc}"; Flags: unchecked
 
 [Files]
-; основной бинарь — берётся рядом с installer.iss в CI
 Source: "..\dist\smart-pc.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\README.md";          DestDir: "{app}"; Flags: ignoreversion isreadme
-Source: "..\LICENSE";            DestDir: "{app}"; Flags: ignoreversion
+; Source: "..\README.md";         DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "..\LICENSE";           DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Smart PC Agent";   Filename: "{app}\smart-pc.exe"
-Name: "{group}\Удалить Smart PC";  Filename: "{uninstallexe}"
-
-; ярлык на рабочем столе — только если пользователь выбрал галочку
-Name: "{autodesktop}\Smart PC Agent"; Filename: "{app}\smart-pc.exe"; \
-  Tasks: desktopicon
+Name: "{group}\Smart PC Agent";             Filename: "{app}\smart-pc.exe"
+Name: "{group}\{cm:UninstallShortcutName}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\Smart PC Agent";       Filename: "{app}\smart-pc.exe"; Tasks: desktopicon
 
 [Registry]
-; добавить в автозапуск если пользователь выбрал галочку
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
   ValueType: string; ValueName: "SmartPCAgent"; \
   ValueData: "{app}\smart-pc.exe"; \
   Flags: uninsdeletevalue; Tasks: autostart
 
-; сохранить версию в реестре (для автообновлятора)
 Root: HKLM; Subkey: "Software\SmartPC"; \
   ValueType: string; ValueName: "Version"; \
   ValueData: "{#MyAppVersion}"; Flags: uninsdeletekey
 
 [Run]
-; запустить агент сразу после установки
 Filename: "{app}\smart-pc.exe"; \
   Description: "Запустить Smart PC Agent"; \
   Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-; остановить агент перед удалением
 Filename: "taskkill"; Parameters: "/F /IM smart-pc.exe"; \
   Flags: runhidden skipifdoesntexist
 
 [Code]
-// проверить что агент не запущен перед установкой (обновление)
 function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
 begin
   if CheckForMutexes('SmartPCAgentMutex') then begin
-    if MsgBox('Smart PC Agent сейчас работает. Остановить для обновления?',
-              mbConfirmation, MB_YESNO) = IDYES then begin
+    if MsgBox(CustomMessage('MsgAppRunning'), mbConfirmation, MB_YESNO) = IDYES then begin
       Exec('taskkill', '/F /IM smart-pc.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Sleep(1000);
     end else begin

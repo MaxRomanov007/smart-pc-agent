@@ -10,7 +10,6 @@ Restart=on-failure
 RestartSec=5s
 Environment=HOME=/home/%i
 
-; трей-агент требует display — запуск от имени пользователя
 User=%i
 
 [Install]
