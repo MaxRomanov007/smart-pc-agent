@@ -15,9 +15,12 @@ import (
 	deleteThisPc "smart-pc-agent/internal/http-server/handlers/delete-this-pc"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 	pcId "smart-pc-agent/internal/http-server/handlers/pc-id"
+	redirectAuth "smart-pc-agent/internal/http-server/handlers/waker/redirect-auth"
+	allowPrivateNetwork "smart-pc-agent/internal/http-server/middlewares/allow-private-network"
 	"smart-pc-agent/internal/http-server/middlewares/uuidmw/commands"
 	luaApi "smart-pc-agent/internal/lib/lua-api"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
+	"smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/storage/sqlite"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
@@ -44,6 +47,7 @@ func New(
 	cfg config.HTTPServer,
 	storage *sqlite.Storage,
 	service *pcsService.Service,
+	waker *waker.Service,
 	registry *luaApi.Registry,
 	stopApp func(),
 ) *Server {
@@ -52,10 +56,11 @@ func New(
 		middleware.RequestID,
 		middleware.Recoverer,
 		logmw.New(log),
+		allowPrivateNetwork.New(),
 		cors.Handler(cors.Options{
-			AllowedOrigins: []string{"*"},
+			AllowedOrigins: []string{"https://smartpc.site"},
 			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-			AllowedHeaders: []string{"*"},
+			AllowedHeaders: []string{"Content-Type", "Authorization"},
 			MaxAge:         300,
 		}),
 	)
@@ -67,6 +72,7 @@ func New(
 	r.Get("/pc-id", pcId.New(log, storage.AppStorage))
 	r.Get("/health/stream", stream.New(log, ctx))
 	r.Get("/api/schema", schema.New(log, registry))
+	r.Get("/waker/auth/callback", redirectAuth.New(log, "http://127.0.0.1:8506/auth/callback"))
 
 	r.Route("/commands", func(r chi.Router) {
 		r.Get("/", getCommands.New(log, service, service, storage.Commands))

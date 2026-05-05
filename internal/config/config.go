@@ -19,10 +19,11 @@ type Config struct {
 	MQTT       MQTT                `yaml:"mqtt"`
 	Storage    Storage             `yaml:"storage"`
 	Services   Services            `yaml:"services"`
+	UI         UI                  `yaml:"ui"`
 }
 
 type HTTPServer struct {
-	Address         string        `yaml:"address"          env-default:"localhost:8506"`
+	Address         string        `yaml:"address"          env-default:"127.0.0.1:8506"`
 	Timeout         time.Duration `yaml:"timeout"          env-default:"4s"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"     env-default:"60s"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" env-default:"1s"`
@@ -31,7 +32,7 @@ type HTTPServer struct {
 type Auth struct {
 	Oauth2      Oauth2       `yaml:"oauth2"`
 	Callback    AuthCallback `yaml:"callback"`
-	UserinfoURL string       `yaml:"userinfo_url" env-default:"http://kratos:4444/userinfo"`
+	UserinfoURL string       `yaml:"userinfo_url" env-default:"https://hydra.smartpc.site/userinfo"`
 }
 
 type AuthCallback struct {
@@ -49,12 +50,12 @@ type Oauth2 struct {
 }
 
 type Oauth2Endpoint struct {
-	AuthURL  string `yaml:"auth_url"  env-default:"http://kratos:4444/oauth2/auth"`
-	TokenURL string `yaml:"token_url" env-default:"http://kratos:4444/oauth2/token"`
+	AuthURL  string `yaml:"auth_url"  env-default:"https://hydra.smartpc.site/oauth2/auth"`
+	TokenURL string `yaml:"token_url" env-default:"https://hydra.smartpc.site/oauth2/token"`
 }
 
 type MQTT struct {
-	BrokerURL             string `yaml:"broker_url"              env-default:"mqtt://localhost:1883"`
+	BrokerURL             string `yaml:"broker_url"              env-default:"wss://mqtt.smartpc.site/mqtt"`
 	ClientIDPrefix        string `yaml:"client_id_prefix"        env-default:"smart_pc_agent_"`
 	SessionExpiryInterval uint32 `yaml:"session_expiry_interval" env-default:"60"`
 	KeepAlive             uint16 `yaml:"keep_alive"              env-default:"20"`
@@ -65,12 +66,23 @@ type Storage struct {
 }
 
 type Services struct {
-	Pcs PcsService `yaml:"pcs"`
+	Pcs   PcsService `yaml:"pcs"`
+	Waker Waker      `yaml:"waker"`
 }
 
 type PcsService struct {
 	Timeout time.Duration `yaml:"timeout"  env-default:"5s"`
-	BaseURL string        `yaml:"base_url" env-default:"http://localhost:9080/pcs"`
+	BaseURL string        `yaml:"base_url" env-default:"https://api.smartpc.site/pcs"`
+}
+
+type Waker struct {
+	Timeout      time.Duration `yaml:"timeout"       env-default:"5s"`
+	BaseURL      string        `yaml:"base_url"`
+	CheckTimeout time.Duration `yaml:"check_timeout" env-default:"1s"`
+}
+
+type UI struct {
+	BaseURL string `yaml:"base_url" env-default:"https://smartpc.site"`
 }
 
 func MustLoad() *Config {

@@ -29,3 +29,17 @@ var pcCaseData []byte
 func GetPcCase() []byte {
 	return pcCaseData
 }
+
+//go:embed download.ico
+var downloadData []byte
+
+func GetDownload() []byte {
+	return downloadData
+}
+
+//go:embed trash.ico
+var trashData []byte
+
+func GetTrash() []byte {
+	return trashData
+}

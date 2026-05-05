@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"log/slog"
 	"os"
 	"os/signal"
-	"smart-pc-agent/data/assets"
 	authorization "smart-pc-agent/internal/auth"
 	"smart-pc-agent/internal/config"
 	httpServer "smart-pc-agent/internal/http-server"
@@ -14,13 +12,13 @@ import (
 	"smart-pc-agent/internal/mqtt"
 	luaLog "smart-pc-agent/internal/mqtt/commands/lua-api/log"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
+	wakerService "smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/storage/sqlite"
+	"smart-pc-agent/internal/tray"
 	"syscall"
 
-	"github.com/MaxRomanov007/smart-pc-go-lib/cross-platform/browser"
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/MaxRomanov007/smart-pc-go-lib/waitable"
-	"github.com/getlantern/systray"
 )
 
 func main() {
@@ -35,7 +33,13 @@ func main() {
 
 	log.Debug("debug messages are enabled")
 
-	go systray.Run(onTrayReady(ctx, log), onTrayExit(stop))
+	waker, err := wakerService.New(cfg.Services.Waker)
+	if err != nil {
+		log.Error("failed to create waker service", sl.Err(err))
+		os.Exit(1)
+	}
+
+	tray.Start(ctx, log, cfg.UI, stop, waker)
 
 	storage, err := sqlite.New(ctx, log, cfg.Storage)
 	if err != nil {
@@ -77,7 +81,7 @@ func main() {
 		log.Info("mqtt connection closed")
 	}()
 
-	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs, registry, stop)
+	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs, waker, registry, stop)
 	go func() {
 		if err := srv.Run(ctx); err != nil {
 			log.Error("http server error", sl.Err(err))
@@ -86,52 +90,4 @@ func main() {
 	}()
 
 	waitable.WaitAll(mqttConn, srv)
-}
-
-func onTrayReady(ctx context.Context, log *slog.Logger) func() {
-	return func() {
-		systray.SetIcon(assets.GetIcon())
-		systray.SetTitle("Smart PC")
-		systray.SetTooltip("Control Agent")
-
-		mOpenDashboard := systray.AddMenuItem("Open dashboard", "Open dashboard")
-		mOpenDashboard.SetIcon(assets.GetHouse())
-		mOpenInterface := systray.AddMenuItem("Open interface", "Open interface")
-		mOpenInterface.SetIcon(assets.GetPcCase())
-		mQuit := systray.AddMenuItem("Quit", "Quit")
-		mQuit.SetIcon(assets.GetExit())
-
-		go func() {
-			const op = "tray"
-			log := log.With(sl.Op(op))
-
-			for {
-				select {
-				case <-ctx.Done():
-					systray.Quit()
-					return
-				case <-mQuit.ClickedCh:
-					log.Info("quit clicked")
-					systray.Quit()
-					return
-				case <-mOpenInterface.ClickedCh:
-					log.Info("open interface clicked")
-					if err := browser.Open("http://localhost:3003/this-pc"); err != nil {
-						log.Error("failed to open browser", sl.Err(err))
-					}
-				case <-mOpenDashboard.ClickedCh:
-					log.Info("open dashboard clicked")
-					if err := browser.Open("http://localhost:3003/dashboard"); err != nil {
-						log.Error("failed to open browser", sl.Err(err))
-					}
-				}
-			}
-		}()
-	}
-}
-
-func onTrayExit(stop context.CancelFunc) func() {
-	return func() {
-		stop()
-	}
 }
