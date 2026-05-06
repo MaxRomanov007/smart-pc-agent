@@ -15,7 +15,7 @@ import (
 	deleteThisPc "smart-pc-agent/internal/http-server/handlers/delete-this-pc"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 	pcId "smart-pc-agent/internal/http-server/handlers/pc-id"
-	redirectAuth "smart-pc-agent/internal/http-server/handlers/waker/redirect-auth"
+	"smart-pc-agent/internal/http-server/handlers/redirect"
 	allowPrivateNetwork "smart-pc-agent/internal/http-server/middlewares/allow-private-network"
 	"smart-pc-agent/internal/http-server/middlewares/uuidmw/commands"
 	luaApi "smart-pc-agent/internal/lib/lua-api"
@@ -72,7 +72,10 @@ func New(
 	r.Get("/pc-id", pcId.New(log, storage.AppStorage))
 	r.Get("/health/stream", stream.New(log, ctx))
 	r.Get("/api/schema", schema.New(log, registry))
-	r.Get("/waker/auth/callback", redirectAuth.New(log, "http://127.0.0.1:8506/auth/callback"))
+	r.Get(
+		"/waker/auth/callback",
+		redirect.New(log, waker.BaseURL+"/auth/callback", http.StatusPermanentRedirect),
+	)
 
 	r.Route("/commands", func(r chi.Router) {
 		r.Get("/", getCommands.New(log, service, service, storage.Commands))

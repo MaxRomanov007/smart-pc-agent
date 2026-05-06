@@ -6,8 +6,9 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// Uninstall connects to the router, stops and removes the service and deletes
-// the binary. Returns ErrAuth if credentials are rejected.
+// Uninstall connects to the router, stops and removes the service, deletes the
+// binary, and removes the agent's cache directory.
+// Returns ErrAuth if credentials are rejected.
 func Uninstall(creds Credentials, opts Options) error {
 	client, err := dialSSH(creds)
 	if err != nil {
@@ -23,6 +24,23 @@ func Uninstall(creds Credentials, opts Options) error {
 		return fmt.Errorf("remove binary: %w", err)
 	}
 
+	if err := removeRemoteCache(client); err != nil {
+		return fmt.Errorf("remove cache: %w", err)
+	}
+
+	return nil
+}
+
+// removeRemoteCache deletes the smart-pc data directory on the router.
+//
+// os.UserCacheDir() on Linux resolves to $XDG_CACHE_HOME if set, otherwise
+// $HOME/.cache — we replicate that logic remotely via shell so we don't need
+// separate SSH calls to read env vars.
+func removeRemoteCache(client *ssh.Client) error {
+	cmd := `sh -c 'cacheDir="${XDG_CACHE_HOME:-/.cache}"; rm -rf "${cacheDir}/smart-pc"'`
+	if out, err := runCommand(client, cmd); err != nil {
+		return fmt.Errorf("rm cache: %w\n%s", err, out)
+	}
 	return nil
 }
 
@@ -70,7 +88,6 @@ func removeSysV(client *ssh.Client, serviceName string) error {
 }
 
 func removeRcLocal(client *ssh.Client, binaryPath string) error {
-	// Kill running process, then strip the line from rc.local.
 	_, _ = runCommand(client, fmt.Sprintf("killall %s 2>/dev/null", binaryPath))
 
 	_, err := runCommand(client, fmt.Sprintf(

@@ -8,6 +8,7 @@ import (
 	"smart-pc-agent/internal/storage"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
+	authBrowser "github.com/MaxRomanov007/smart-pc-go-lib/authorization/browser"
 	"golang.org/x/oauth2"
 )
 
@@ -28,7 +29,6 @@ func New(
 	const op = "auth.New"
 
 	authConfig := &authorization.Config{
-		CallbackConfig: authorization.CallbackConfig(cfg.Callback),
 		Oauth2Config: &oauth2.Config{
 			ClientID: cfg.Oauth2.ClientID,
 			Scopes:   cfg.Oauth2.Scopes,
@@ -48,11 +48,10 @@ func New(
 
 	auth, err := authorization.Load(ctx, authConfig)
 	if errors.Is(err, storage.ErrNotFound) {
-		auth, err = authorization.New(ctx, authConfig)
+		auth, err = authBrowser.Authorize(ctx, authConfig, authBrowser.CallbackConfig(cfg.Callback))
 		if err != nil {
-			return nil, fmt.Errorf("%s: failed to create new auth: %w", op, err)
+			return nil, fmt.Errorf("%s: failed to authorize: %w", op, err)
 		}
-
 		return auth, nil
 	}
 	if err != nil {

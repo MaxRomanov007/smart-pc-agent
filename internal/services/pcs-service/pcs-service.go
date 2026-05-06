@@ -11,14 +11,15 @@ import (
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/api/response"
 	"github.com/MaxRomanov007/smart-pc-go-lib/authorization"
+	apiclient "github.com/MaxRomanov007/smart-pc-go-lib/authorization/api-client"
 	"github.com/MaxRomanov007/smart-pc-go-lib/domain/models"
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	apiClient *authorization.ApiClient
+	apiClient *apiclient.Client
 	baseURL   string
-	pcID      string
+	PcID      string
 }
 
 type PcIDGetter interface {
@@ -38,12 +39,12 @@ func New(
 ) (*Service, error) {
 	const op = "pcs-service.New"
 
-	client, err := auth.NewApiClient(ctx, &http.Client{
-		Timeout: cfg.Timeout,
-	})
+	userinfo, err := auth.FetchUserInfo(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create api client: %w", op, err)
+		return nil, fmt.Errorf("%s: failed to fetch userinfo: %w", op, err)
 	}
+
+	client := apiclient.NewWithUID(&http.Client{Timeout: cfg.Timeout}, auth, userinfo.Sub)
 
 	service := &Service{
 		apiClient: client,
@@ -86,7 +87,7 @@ func (s *Service) ensurePcIDCreated(
 		return fmt.Errorf("%s: failed to get saved pc from server: %w", op, err)
 	}
 
-	s.pcID = pcID
+	s.PcID = pcID
 	return nil
 }
 
@@ -112,7 +113,7 @@ func (s *Service) createAndSaveNewPc(ctx context.Context, setter PcIDSetter) err
 		return fmt.Errorf("%s: failed to save pc id: %w", op, saveErr)
 	}
 
-	s.pcID = newPc.ID.String()
+	s.PcID = newPc.ID.String()
 	return nil
 }
 
@@ -121,7 +122,7 @@ func (s *Service) url(endpoint string) string {
 }
 
 func (s *Service) pcURL(endpoint string) string {
-	return s.url(fmt.Sprintf("/pcs/%s%s", s.pcID, endpoint))
+	return s.url(fmt.Sprintf("/pcs/%s%s", s.PcID, endpoint))
 }
 
 func (s *Service) pcCommandUrl(commandID uuid.UUID, endpoint string) string {
@@ -131,7 +132,7 @@ func (s *Service) pcCommandUrl(commandID uuid.UUID, endpoint string) string {
 func (s *Service) CreatePc(ctx context.Context, pc models.Pc) (models.Pc, error) {
 	const op = "pcs-service.CreatePc"
 
-	resp, err := authorization.DoNewRequest[models.Pc](
+	resp, err := apiclient.Send[models.Pc](
 		ctx,
 		s.apiClient,
 		http.MethodPost,
@@ -152,7 +153,7 @@ func (s *Service) CreatePc(ctx context.Context, pc models.Pc) (models.Pc, error)
 func (s *Service) DeletePc(ctx context.Context, id string) (models.Pc, error) {
 	const op = "pcs-service.DeletePc"
 
-	resp, err := authorization.DoNewRequest[models.Pc](
+	resp, err := apiclient.Send[models.Pc](
 		ctx,
 		s.apiClient,
 		http.MethodDelete,
@@ -184,7 +185,7 @@ func (s *Service) DeletePc(ctx context.Context, id string) (models.Pc, error) {
 func (s *Service) GetPc(ctx context.Context, id string) (models.Pc, error) {
 	const op = "pcs-service.GetPc"
 
-	resp, err := authorization.DoNewRequest[models.Pc](
+	resp, err := apiclient.Send[models.Pc](
 		ctx,
 		s.apiClient,
 		http.MethodGet,
@@ -216,7 +217,7 @@ func (s *Service) GetPc(ctx context.Context, id string) (models.Pc, error) {
 func (s *Service) GetCommands(ctx context.Context) ([]models.Command, error) {
 	const op = "pcs-service.GetCommands"
 
-	resp, err := authorization.DoNewRequest[[]models.Command](
+	resp, err := apiclient.Send[[]models.Command](
 		ctx,
 		s.apiClient,
 		http.MethodGet,
@@ -240,7 +241,7 @@ func (s *Service) GetCommandParameters(
 ) ([]models.CommandParameter, error) {
 	const op = "pcs-service.GetCommandParameters"
 
-	resp, err := authorization.DoNewRequest[[]models.CommandParameter](
+	resp, err := apiclient.Send[[]models.CommandParameter](
 		ctx,
 		s.apiClient,
 		http.MethodGet,
@@ -264,7 +265,7 @@ func (s *Service) CreatePcCommand(
 ) (models.Command, error) {
 	const op = "pcs-service.CreatePcCommand"
 
-	resp, err := authorization.DoNewRequest[models.Command](
+	resp, err := apiclient.Send[models.Command](
 		ctx,
 		s.apiClient,
 		http.MethodPost,
@@ -285,7 +286,7 @@ func (s *Service) CreatePcCommand(
 func (s *Service) DeletePcCommand(ctx context.Context, id uuid.UUID) (models.Command, error) {
 	const op = "pcs-service.DeletePcCommand"
 
-	resp, err := authorization.DoNewRequest[models.Command](
+	resp, err := apiclient.Send[models.Command](
 		ctx,
 		s.apiClient,
 		http.MethodDelete,
@@ -320,7 +321,7 @@ func (s *Service) UpdatePcCommand(
 ) (models.Command, error) {
 	const op = "pcs-service.UpdatePcCommand"
 
-	resp, err := authorization.DoNewRequest[models.Command](
+	resp, err := apiclient.Send[models.Command](
 		ctx,
 		s.apiClient,
 		http.MethodPatch,
@@ -341,7 +342,7 @@ func (s *Service) UpdatePcCommand(
 func (s *Service) DeleteThisPc(ctx context.Context) (models.Pc, error) {
 	const op = "pcs-service.DeletePcCommand"
 
-	deleted, err := s.DeletePc(ctx, s.pcID)
+	deleted, err := s.DeletePc(ctx, s.PcID)
 	if err != nil {
 		return models.Pc{}, fmt.Errorf("%s: failed to delete this pc: %w", op, err)
 	}

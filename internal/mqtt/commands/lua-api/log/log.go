@@ -15,11 +15,18 @@ func New(log *slog.Logger) *Module {
 	return &Module{log: log}
 }
 
+const (
+	debugKey = "debug"
+	infoKey  = "info"
+	warnKey  = "warn"
+	errorKey = "error"
+)
+
 func (m *Module) Register(l *lua.LState, table *lua.LTable) {
-	l.SetField(table, "debug", m.logDebug(l))
-	l.SetField(table, "info", m.logInfo(l))
-	l.SetField(table, "warn", m.logWarn(l))
-	l.SetField(table, "error", m.logError(l))
+	l.SetField(table, debugKey, m.logDebug(l))
+	l.SetField(table, infoKey, m.logInfo(l))
+	l.SetField(table, warnKey, m.logWarn(l))
+	l.SetField(table, errorKey, m.logError(l))
 }
 
 func (m *Module) logDebug(l *lua.LState) lua.LValue {
@@ -54,7 +61,7 @@ func (m *Module) Doc() luaApi.ModuleDoc {
 	return luaApi.ModuleDoc{
 		Description: "logging",
 		Functions: map[string]luaApi.FunctionDoc{
-			"debug": {
+			debugKey: {
 				Description: "debug level logging",
 				Params: []luaApi.ParamDoc{
 					{
@@ -64,7 +71,7 @@ func (m *Module) Doc() luaApi.ModuleDoc {
 					},
 				},
 			},
-			"info": {
+			infoKey: {
 				Description: "info level logging",
 				Params: []luaApi.ParamDoc{
 					{
@@ -74,7 +81,7 @@ func (m *Module) Doc() luaApi.ModuleDoc {
 					},
 				},
 			},
-			"warn": {
+			warnKey: {
 				Description: "warn level logging",
 				Params: []luaApi.ParamDoc{
 					{
@@ -84,7 +91,7 @@ func (m *Module) Doc() luaApi.ModuleDoc {
 					},
 				},
 			},
-			"error": {
+			errorKey: {
 				Description: "error level logging",
 				Params: []luaApi.ParamDoc{
 					{

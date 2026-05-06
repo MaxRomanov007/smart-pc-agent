@@ -76,9 +76,10 @@ type PcsService struct {
 }
 
 type Waker struct {
-	Timeout      time.Duration `yaml:"timeout"       env-default:"5s"`
-	BaseURL      string        `yaml:"base_url"`
-	CheckTimeout time.Duration `yaml:"check_timeout" env-default:"1s"`
+	Timeout         time.Duration `yaml:"timeout"          env-default:"5s"`
+	BaseURL         string        `yaml:"base_url"`
+	CheckTimeout    time.Duration `yaml:"check_timeout"    env-default:"1s"`
+	RegisterTimeout time.Duration `yaml:"register_timeout" env-default:"5s"`
 }
 
 type UI struct {

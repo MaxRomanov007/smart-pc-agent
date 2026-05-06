@@ -43,3 +43,10 @@ var trashData []byte
 func GetTrash() []byte {
 	return trashData
 }
+
+//go:embed log-in.ico
+var logInData []byte
+
+func GetLogIn() []byte {
+	return logInData
+}

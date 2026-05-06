@@ -11,6 +11,7 @@ import (
 	luaApi "smart-pc-agent/internal/lib/lua-api"
 	"smart-pc-agent/internal/mqtt"
 	luaLog "smart-pc-agent/internal/mqtt/commands/lua-api/log"
+	luaMessages "smart-pc-agent/internal/mqtt/commands/lua-api/messages"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
 	wakerService "smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/storage/sqlite"
@@ -33,7 +34,7 @@ func main() {
 
 	log.Debug("debug messages are enabled")
 
-	waker, err := wakerService.New(cfg.Services.Waker)
+	waker, err := wakerService.New(ctx, cfg.Services.Waker, log)
 	if err != nil {
 		log.Error("failed to create waker service", sl.Err(err))
 		os.Exit(1)
@@ -59,8 +60,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	waker.SetPcID(pcs.PcID)
+
 	registry := luaApi.NewRegistry("v0.0.0").
-		Register("log", luaLog.New(log))
+		Register("log", luaLog.New(log)).
+		Register("messages", luaMessages.New())
 
 	mqttConn, err := mqtt.New(
 		ctx,
@@ -89,5 +93,5 @@ func main() {
 		}
 	}()
 
-	waitable.WaitAll(mqttConn, srv)
+	waitable.WaitAll(mqttConn, srv, waker)
 }
