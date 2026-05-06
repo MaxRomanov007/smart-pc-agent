@@ -40,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	tray.Start(ctx, log, cfg.UI, stop, waker)
+	wakerEvents := tray.Start(ctx, log, cfg.UI, stop, waker)
 
 	storage, err := sqlite.New(ctx, log, cfg.Storage)
 	if err != nil {
@@ -85,7 +85,17 @@ func main() {
 		log.Info("mqtt connection closed")
 	}()
 
-	srv := httpServer.New(ctx, log, cfg.HTTPServer, storage, pcs, waker, registry, stop)
+	srv := httpServer.New(
+		ctx,
+		log,
+		cfg.HTTPServer,
+		storage,
+		pcs,
+		waker,
+		registry,
+		stop,
+		wakerEvents,
+	)
 	go func() {
 		if err := srv.Run(ctx); err != nil {
 			log.Error("http server error", sl.Err(err))

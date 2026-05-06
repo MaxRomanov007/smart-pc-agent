@@ -6,24 +6,52 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// Uninstall connects to the router, stops and removes the service, deletes the
+type UninstallStep int
+
+const (
+	UninstallStepUnregisterAllPcs UninstallStep = iota
+	UninstallStepDialSSH
+	UninstallStepRemoveAutostart
+	UninstallStepRemoveBinary
+	UninstallStepRemoveCache
+	UninstallStepCloseConnection
+)
+
+// UninstallWithSteps connects to the router, stops and removes the service, deletes the
 // binary, and removes the agent's cache directory.
 // Returns ErrAuth if credentials are rejected.
-func Uninstall(creds Credentials, opts Options) error {
+// Uses stepFunc to provide installing step
+func UninstallWithSteps(
+	creds Credentials,
+	opts Options,
+	unregisterAll func() error,
+	stepFunc func(step UninstallStep),
+) error {
+	if err := unregisterAll(); err != nil {
+		return err
+	}
+
+	stepFunc(UninstallStepDialSSH)
 	client, err := dialSSH(creds)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() {
+		stepFunc(UninstallStepCloseConnection)
+		_ = client.Close()
+	}()
 
+	stepFunc(UninstallStepRemoveAutostart)
 	if err := removeAutostart(client, opts.RemoteBinaryPath, opts.ServiceName); err != nil {
 		return fmt.Errorf("remove autostart: %w", err)
 	}
 
+	stepFunc(UninstallStepRemoveBinary)
 	if _, err := runCommand(client, fmt.Sprintf("rm -f %s", opts.RemoteBinaryPath)); err != nil {
 		return fmt.Errorf("remove binary: %w", err)
 	}
 
+	stepFunc(UninstallStepRemoveCache)
 	if err := removeRemoteCache(client); err != nil {
 		return fmt.Errorf("remove cache: %w", err)
 	}

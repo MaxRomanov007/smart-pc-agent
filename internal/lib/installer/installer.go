@@ -29,36 +29,62 @@ type Options struct {
 	ServiceName string
 }
 
-// Install connects to the router, detects its architecture, downloads the
+type InstallStep int
+
+const (
+	InstallStepDialSSH InstallStep = iota
+	InstallStepDetectArch
+	InstallStepGetLatestTag
+	InstallStepDownloadBinary
+	InstallStepUpload
+	InstallStepConfigureAutostart
+	InstallStepRemoveTempFile
+	InstallStepCloseConnection
+)
+
+// InstallWithSteps connects to the router, detects its architecture, downloads the
 // latest release binary from GitHub, uploads it and configures autostart.
 // Returns ErrAuth if credentials are rejected so the caller can retry.
-func Install(creds Credentials, opts Options) error {
+// Uses stepFunc to provide installing step
+func InstallWithSteps(creds Credentials, opts Options, stepFunc func(InstallStep)) error {
+	stepFunc(InstallStepDialSSH)
 	client, err := dialSSH(creds)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() {
+		stepFunc(InstallStepCloseConnection)
+		_ = client.Close()
+	}()
 
+	stepFunc(InstallStepDetectArch)
 	arch, err := detectArch(client)
 	if err != nil {
 		return fmt.Errorf("arch detection: %w", err)
 	}
 
+	stepFunc(InstallStepGetLatestTag)
 	tag, err := latestTag(opts.Repo)
 	if err != nil {
 		return fmt.Errorf("latest release: %w", err)
 	}
 
+	stepFunc(InstallStepDownloadBinary)
 	binary, err := downloadBinary(opts.Repo, tag, arch)
 	if err != nil {
 		return fmt.Errorf("download (%s, %s): %w", tag, arch, err)
 	}
-	defer removeTempFile(binary)
+	defer func() {
+		stepFunc(InstallStepRemoveTempFile)
+		removeTempFile(binary)
+	}()
 
+	stepFunc(InstallStepUpload)
 	if err := upload(client, binary, opts.RemoteBinaryPath); err != nil {
 		return fmt.Errorf("upload: %w", err)
 	}
 
+	stepFunc(InstallStepConfigureAutostart)
 	if err := configureAutostart(client, opts.RemoteBinaryPath, opts.ServiceName); err != nil {
 		return fmt.Errorf("autostart: %w", err)
 	}

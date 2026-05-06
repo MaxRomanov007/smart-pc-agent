@@ -164,9 +164,9 @@ func (s *Service) getAddress() string {
 	return slashSplit[0]
 }
 
-type Registered struct {
-	ID  string `json:"id"`
-	MAC string `json:"mac"`
+type RegisterRequest struct {
+	PcID string `json:"pcId" validate:"required,uuid"`
+	MAC  string `json:"mac"  validate:"required,mac"`
 }
 
 func (s *Service) Register(ctx context.Context) error {
@@ -177,9 +177,9 @@ func (s *Service) Register(ctx context.Context) error {
 		s.client,
 		http.MethodPost,
 		s.url("/registered"),
-		Registered{
-			ID:  s.pcID,
-			MAC: s.mac,
+		RegisterRequest{
+			PcID: s.pcID,
+			MAC:  s.mac,
 		},
 	)
 	if err != nil {
@@ -241,6 +241,27 @@ func (s *Service) AuthorizeURL(ctx context.Context) (string, error) {
 	}
 
 	return resp.Data.URL, nil
+}
+
+func (s *Service) UnregisterAll(ctx context.Context) error {
+	const op = "services.waker.IsAuthorized"
+
+	resp, err := apiclient.Send[urlResponse](
+		ctx,
+		s.client,
+		http.MethodDelete,
+		s.url("/registered"),
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("%s: failed to do request: %w", op, err)
+	}
+
+	if resp.Status != response.StatusOK {
+		return fmt.Errorf("%s: response status is not ok: %s", op, resp.Status)
+	}
+
+	return nil
 }
 
 func (s *Service) url(path string) string {

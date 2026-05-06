@@ -15,13 +15,14 @@ import (
 	deleteThisPc "smart-pc-agent/internal/http-server/handlers/delete-this-pc"
 	"smart-pc-agent/internal/http-server/handlers/health/stream"
 	pcId "smart-pc-agent/internal/http-server/handlers/pc-id"
-	"smart-pc-agent/internal/http-server/handlers/redirect"
+	wakerCallback "smart-pc-agent/internal/http-server/handlers/waker/auth/waker-callback"
 	allowPrivateNetwork "smart-pc-agent/internal/http-server/middlewares/allow-private-network"
 	"smart-pc-agent/internal/http-server/middlewares/uuidmw/commands"
 	luaApi "smart-pc-agent/internal/lib/lua-api"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
 	"smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/storage/sqlite"
+	"smart-pc-agent/internal/tray/items/wakeritems"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/MaxRomanov007/smart-pc-go-lib/middlewares/logmw"
@@ -50,6 +51,7 @@ func New(
 	waker *waker.Service,
 	registry *luaApi.Registry,
 	stopApp func(),
+	wakerEvents *wakeritems.Events,
 ) *Server {
 	r := chi.NewRouter()
 	r.Use(
@@ -74,7 +76,16 @@ func New(
 	r.Get("/api/schema", schema.New(log, registry))
 	r.Get(
 		"/waker/auth/callback",
-		redirect.New(log, waker.BaseURL+"/auth/callback", http.StatusPermanentRedirect),
+		wakerCallback.New(
+			ctx,
+			log,
+			waker.BaseURL+"/auth/callback",
+			http.StatusPermanentRedirect,
+			func() {
+				wakerEvents.NotifyAuthorized()
+			},
+			waker,
+		),
 	)
 
 	r.Route("/commands", func(r chi.Router) {
