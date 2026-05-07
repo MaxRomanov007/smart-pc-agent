@@ -31,6 +31,7 @@ func main() {
 	// parent), apply the pre-downloaded binary and exit. This is a no-op on
 	// Linux and macOS — the function is defined but empty in apply_unix.go.
 	updater.HandleDoUpdateFlag()
+	updater.CleanupOldBinary()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

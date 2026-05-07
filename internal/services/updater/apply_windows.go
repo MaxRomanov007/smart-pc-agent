@@ -29,9 +29,12 @@ const innoSetupRegKey = `SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Sma
 //  2. Re-launch ourselves via ShellExecuteExW with verb "runas" and the
 //     --do-update=<path>,<version> flag; Windows shows a single UAC prompt.
 //  3. The elevated child applies go-update, updates the registry version,
-//     deletes the .old file and the temp binary, then exits 0.
+//     schedules deletion of the .old file via MoveFileExW (DELAY_UNTIL_REBOOT)
+//     as a fallback, deletes the temp binary, then exits 0.
 //  4. The original process waits, gets exit code 0, returns nil — caller
 //     proceeds to restart.Now() which spawns a fresh non-elevated agent.
+//     The fresh agent calls CleanupOldBinary() on startup to remove .old if
+//     it was not already cleaned up.
 func (s *Service) Apply(release ReleaseInfo) error {
 	s.log.Info("downloading update",
 		slog.String("version", release.Version),
@@ -67,10 +70,17 @@ func (s *Service) Apply(release ReleaseInfo) error {
 // HandleDoUpdateFlag must be called at the very top of main().
 // If --do-update=<tmpPath>,<version> is present the process:
 //  1. Applies the new binary via go-update  (has admin rights via UAC)
-//  2. Removes the .old leftover that go-update creates
+//  2. Tries to remove the .old leftover immediately; if Windows still holds a
+//     lock on it (the current process IS that old binary), schedules deletion
+//     on next reboot via MoveFileExW(MOVEFILE_DELAY_UNTIL_REBOOT).
 //  3. Updates the DisplayVersion in the Inno Setup uninstall registry key
 //  4. Removes the temp binary
 //  5. Exits 0
+//
+// After this process exits, the fresh (non-elevated) agent that restart.Now()
+// spawns will call CleanupOldBinary() on startup, which removes the .old file
+// before Windows places a lock on the new process image — covering the common
+// case where the reboot-scheduled deletion is not needed.
 func HandleDoUpdateFlag() {
 	val := flagValue(DoUpdateFlag)
 	if val == "" {
@@ -101,9 +111,26 @@ func HandleDoUpdateFlag() {
 	f.Close()
 
 	// 2. Remove the .old file go-update leaves behind.
+	//
+	// Root cause: go-update renames the current exe to <exe>.old before
+	// writing the new binary. The elevated child process IS that old binary,
+	// so Windows keeps a file lock on <exe>.old for as long as the process
+	// runs. os.Remove therefore fails here.
+	//
+	// Strategy:
+	//   a) Try immediate removal — succeeds once the process has exited, but
+	//      we try anyway in case go-update's behaviour changes.
+	//   b) Schedule deletion at next OS reboot via MoveFileExW as a safety net.
+	//   c) CleanupOldBinary() (called by the freshly-restarted agent on startup)
+	//      handles the normal case: by the time the new process starts, the
+	//      elevated child has exited and the lock is gone.
 	exe, err := os.Executable()
 	if err == nil {
-		os.Remove(exe + ".old") // best effort
+		oldPath := exe + ".old"
+		if removeErr := os.Remove(oldPath); removeErr != nil {
+			// Lock still held — schedule deletion on next Windows boot.
+			scheduleDeleteOnReboot(oldPath) // best effort, requires admin (we have it here)
+		}
 	}
 
 	// 3. Update DisplayVersion in the Inno Setup uninstall registry key.
@@ -120,6 +147,19 @@ func HandleDoUpdateFlag() {
 	os.Exit(0)
 }
 
+// CleanupOldBinary removes the <exe>.old file left by go-update, if present.
+// Call this once near the top of main(), before the application starts doing
+// meaningful work. By the time the freshly-updated process reaches main(),
+// the elevated child that held the lock on .old has already exited, so the
+// removal succeeds without UAC.
+func CleanupOldBinary() {
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	os.Remove(exe + ".old") // best effort — ignore errors
+}
+
 func updateRegistryVersion(version string) {
 	k, err := registry.OpenKey(
 		registry.LOCAL_MACHINE,
@@ -133,6 +173,28 @@ func updateRegistryVersion(version string) {
 
 	k.SetStringValue("DisplayVersion", version)                //nolint:errcheck
 	k.SetStringValue("DisplayName", "Smart PC Agent "+version) //nolint:errcheck
+}
+
+// scheduleDeleteOnReboot marks path for deletion on the next Windows reboot
+// using MoveFileExW(path, NULL, MOVEFILE_DELAY_UNTIL_REBOOT).
+// Requires administrator privileges — safe to call from the UAC-elevated child.
+func scheduleDeleteOnReboot(path string) {
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	moveFileEx := kernel32.NewProc("MoveFileExW")
+
+	pathPtr, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return
+	}
+
+	const movefileDelayUntilReboot = 0x00000004
+
+	// lpNewFileName = NULL means "delete on reboot".
+	moveFileEx.Call(
+		uintptr(unsafe.Pointer(pathPtr)),
+		0, // NULL
+		movefileDelayUntilReboot,
+	)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
