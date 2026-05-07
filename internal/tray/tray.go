@@ -5,9 +5,11 @@ import (
 	"log/slog"
 	"smart-pc-agent/data/assets"
 	"smart-pc-agent/internal/config"
+	"smart-pc-agent/internal/services/updater"
 	"smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/tray/items/navigation"
 	"smart-pc-agent/internal/tray/items/quit"
+	"smart-pc-agent/internal/tray/items/updateritems"
 	"smart-pc-agent/internal/tray/items/wakeritems"
 	"smart-pc-agent/internal/tray/menu"
 
@@ -20,6 +22,7 @@ func Start(
 	uiCfg config.UI,
 	stop context.CancelFunc,
 	waker *waker.Service,
+	upd *updater.Service,
 ) *wakeritems.Events {
 	events := wakeritems.NewEvents()
 
@@ -27,6 +30,8 @@ func Start(
 		navigation.New(ctx, log, uiCfg),
 		menu.NewSeparator(),
 		wakeritems.New(ctx, log, waker, events),
+		menu.NewSeparator(),
+		updateritems.New(ctx, log, upd, stop),
 		menu.NewSeparator(),
 		quit.New(ctx, log),
 	}

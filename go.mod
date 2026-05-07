@@ -44,6 +44,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josephspurrier/goversioninfo v1.5.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

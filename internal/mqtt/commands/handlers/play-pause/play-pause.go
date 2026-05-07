@@ -3,7 +3,7 @@ package playPause
 import (
 	"context"
 	"log/slog"
-	"smart-pc-agent/internal/lib/cross-platform/mediactl"
+	"smart-pc-agent/internal/lib/mediactl"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/commands"
 	commandMessage "github.com/MaxRomanov007/smart-pc-go-lib/domain/models/command-message"

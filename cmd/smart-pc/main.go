@@ -13,6 +13,7 @@ import (
 	luaLog "smart-pc-agent/internal/mqtt/commands/lua-api/log"
 	luaMessages "smart-pc-agent/internal/mqtt/commands/lua-api/messages"
 	pcsService "smart-pc-agent/internal/services/pcs-service"
+	"smart-pc-agent/internal/services/updater"
 	wakerService "smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/storage/sqlite"
 	"smart-pc-agent/internal/tray"
@@ -21,6 +22,9 @@ import (
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
 	"github.com/MaxRomanov007/smart-pc-go-lib/waitable"
 )
+
+// version is set at build time via -ldflags "-X main.version=v1.2.3"
+var version = "v0.0.0"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -40,7 +44,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	wakerEvents := tray.Start(ctx, log, cfg.UI, stop, waker)
+	upd := updater.New(ctx, log, version)
+
+	wakerEvents := tray.Start(ctx, log, cfg.UI, stop, waker, upd)
 
 	storage, err := sqlite.New(ctx, log, cfg.Storage)
 	if err != nil {
@@ -62,7 +68,7 @@ func main() {
 
 	waker.SetPcID(pcs.PcID)
 
-	registry := luaApi.NewRegistry("v0.0.0").
+	registry := luaApi.NewRegistry(version).
 		Register("log", luaLog.New(log)).
 		Register("messages", luaMessages.New())
 
