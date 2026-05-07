@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
-	goUpdate "github.com/inconshreveable/go-update"
 )
 
 const (
@@ -60,7 +59,7 @@ func (s *Service) OnUpdateFound(fn UpdateFoundFunc) {
 	s.onFound = fn
 }
 
-// start launches the background polling loop; returns when ctx is canceled.
+// start launches the background polling loop; returns when ctx is cancelled.
 func (s *Service) start(ctx context.Context) {
 	s.log.Info("updater started",
 		slog.String("current", s.currentVersion),
@@ -176,50 +175,39 @@ func assetName() string {
 }
 
 // ── Apply ─────────────────────────────────────────────────────────────────────
+// Apply is implemented in apply_unix.go and apply_windows.go.
 
-// Apply downloads the release archive and atomically replaces the running binary.
-// The binary path on disk stays the same, so autostart entries are unaffected:
-//   - Linux:   ~/.config/systemd/user/smart-pc.service  (ExecStart path unchanged)
-//   - Windows: HKCU\...\Run registry value              (path unchanged)
-func (s *Service) Apply(release ReleaseInfo) error {
-	s.log.Info("downloading update",
-		slog.String("version", release.Version),
-		slog.String("url", release.DownloadURL),
-	)
+// ── archive extraction ────────────────────────────────────────────────────────
 
+// downloadBinary fetches the release archive and returns a reader over the
+// raw binary inside. Caller must close the returned ReadCloser.
+func downloadBinary(release ReleaseInfo) (io.ReadCloser, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, release.DownloadURL, nil)
 	if err != nil {
-		return fmt.Errorf("build request: %w", err)
+		return nil, fmt.Errorf("build request: %w", err)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("download: %w", err)
+		return nil, fmt.Errorf("download: %w", err)
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download server returned %d", resp.StatusCode)
+		resp.Body.Close()
+		return nil, fmt.Errorf("download server returned %d", resp.StatusCode)
 	}
 
 	binary, err := extractBinary(resp.Body, release.DownloadURL)
 	if err != nil {
-		return fmt.Errorf("extract: %w", err)
-	}
-	defer binary.Close()
-
-	if err := goUpdate.Apply(binary, goUpdate.Options{}); err != nil {
-		return fmt.Errorf("apply: %w", err)
+		resp.Body.Close()
+		return nil, fmt.Errorf("extract: %w", err)
 	}
 
-	s.log.Info("update applied", slog.String("version", release.Version))
-	return nil
+	return binary, nil
 }
-
-// ── archive extraction ────────────────────────────────────────────────────────
 
 // extractBinary unwraps the archive and returns a reader over the binary inside.
 // Supports .tar.gz (Linux / macOS) and .zip (Windows).
@@ -244,7 +232,6 @@ func extractFromTarGz(body io.Reader) (io.ReadCloser, error) {
 			return nil, fmt.Errorf("binary not found in archive: %w", err)
 		}
 		if hdr.Typeflag == tar.TypeReg {
-			// Return a closer that also closes the gzip reader.
 			return &tarEntry{Reader: tr, gz: gz}, nil
 		}
 	}
