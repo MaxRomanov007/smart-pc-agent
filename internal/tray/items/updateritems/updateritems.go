@@ -4,6 +4,7 @@ package updateritems
 import (
 	"context"
 	"log/slog"
+	"smart-pc-agent/data/assets"
 	"smart-pc-agent/internal/lib/restart"
 	"smart-pc-agent/internal/services/updater"
 	"smart-pc-agent/internal/tray/menu"
@@ -37,6 +38,7 @@ func New(
 
 func (it *Item) Mount() {
 	mUpdate := systray.AddMenuItem("Check for updates", "Check for updates")
+	mUpdate.SetIcon(assets.GetUpdate())
 
 	// Background ticker found an update — switch button to "Update to vX.X.X"
 	// and send a desktop notification. The click handler already running below

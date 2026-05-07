@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	githubRepo    = "MaxRomanov007/smart-pc"
+	githubRepo    = "MaxRomanov007/smart-pc-agent"
 	githubAPI     = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
 	checkInterval = 3 * time.Hour
 )

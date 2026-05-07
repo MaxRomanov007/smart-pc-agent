@@ -29,9 +29,9 @@ func Start(
 	items := []menu.Item{
 		navigation.New(ctx, log, uiCfg),
 		menu.NewSeparator(),
-		wakeritems.New(ctx, log, waker, events),
-		menu.NewSeparator(),
 		updateritems.New(ctx, log, upd, stop),
+		menu.NewSeparator(),
+		wakeritems.New(ctx, log, waker, events),
 		menu.NewSeparator(),
 		quit.New(ctx, log),
 	}

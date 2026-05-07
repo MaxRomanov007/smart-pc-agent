@@ -50,3 +50,10 @@ var logInData []byte
 func GetLogIn() []byte {
 	return logInData
 }
+
+//go:embed update.ico
+var updateData []byte
+
+func GetUpdate() []byte {
+	return updateData
+}

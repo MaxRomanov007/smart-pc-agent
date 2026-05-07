@@ -159,7 +159,11 @@ func (it *Item) onInstall(mInstall, mUninstall, mAuthorize *systray.MenuItem) {
 		return
 	}
 
-	dlg, err := zenity.Progress(zenity.Title("Installing waker"), zenity.NoCancel())
+	dlg, err := zenity.Progress(
+		zenity.Title("Installing waker"),
+		zenity.NoCancel(),
+		zenity.OKLabel("Authorize"),
+	)
 	if err != nil {
 		it.log.Error("failed to show progress dialog")
 		return
