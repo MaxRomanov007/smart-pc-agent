@@ -36,3 +36,5 @@ func (s *Service) Apply(release ReleaseInfo) error {
 // HandleDoUpdateFlag is a no-op on non-Windows platforms.
 // On Windows it is defined in apply_windows.go and handles the --do-update flag.
 func HandleDoUpdateFlag() {}
+
+func CleanupOldBinary() {}
