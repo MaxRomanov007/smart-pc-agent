@@ -4,8 +4,6 @@ package updater
 
 import (
 	"archive/tar"
-	"archive/zip"
-	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -14,7 +12,6 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/logger/sl"
@@ -29,10 +26,10 @@ const (
 // ReleaseInfo is the subset of a GitHub release we care about.
 type ReleaseInfo struct {
 	Version     string // e.g. "v1.2.3"
-	DownloadURL string // direct URL to the platform archive
+	DownloadURL string // direct URL to the platform asset
 }
 
-// UpdateFoundFunc is called (from a goroutine) when a newer version is found.
+// UpdateFoundFunc is called from a goroutine when a newer version is found.
 type UpdateFoundFunc func(release ReleaseInfo)
 
 // Service periodically polls GitHub and notifies listeners.
@@ -47,26 +44,23 @@ func New(ctx context.Context, log *slog.Logger, currentVersion string) *Service 
 		log:            log.With(sl.Op("updater")),
 		currentVersion: currentVersion,
 	}
-
 	go s.start(ctx)
-
 	return s
 }
 
 // OnUpdateFound registers the callback invoked when a newer version is found.
-// Must be called before Start.
 func (s *Service) OnUpdateFound(fn UpdateFoundFunc) {
 	s.onFound = fn
 }
 
-// start launches the background polling loop; returns when ctx is cancelled.
 func (s *Service) start(ctx context.Context) {
 	s.log.Info("updater started",
 		slog.String("current", s.currentVersion),
-		slog.String("platform", assetName()),
+		slog.String("os", runtime.GOOS),
+		slog.String("arch", runtime.GOARCH),
 	)
 
-	s.check() // immediate check on start
+	s.check()
 
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
@@ -85,7 +79,6 @@ func (s *Service) start(ctx context.Context) {
 // Check fetches the latest release and returns it if a newer version exists.
 // Returns (release, true, nil) when an update is available,
 // (zero, false, nil) when already up to date, or (zero, false, err) on failure.
-// Safe to call concurrently — used both by the background ticker and the tray item.
 func (s *Service) Check() (ReleaseInfo, bool, error) {
 	release, err := fetchLatestRelease()
 	if err != nil {
@@ -149,9 +142,7 @@ func fetchLatestRelease() (ReleaseInfo, error) {
 		return ReleaseInfo{}, err
 	}
 
-	// Find the asset that matches the current OS/arch.
-	// Workflow produces: smart-pc-linux-amd64.tar.gz, smart-pc-windows-amd64.zip, etc.
-	want := assetName()
+	want := assetName(rel.TagName)
 	for _, a := range rel.Assets {
 		if a.Name == want {
 			return ReleaseInfo{
@@ -164,28 +155,26 @@ func fetchLatestRelease() (ReleaseInfo, error) {
 	return ReleaseInfo{}, fmt.Errorf("no asset %q in release %s", want, rel.TagName)
 }
 
-// assetName returns the archive filename for the current platform,
-// matching exactly what the Release workflow produces.
-func assetName() string {
-	ext := ".tar.gz"
-	if runtime.GOOS == "windows" {
-		ext = ".zip"
+// assetName returns the asset filename for the current platform.
+// On Windows — the Inno Setup installer; on Linux/macOS — the tar.gz archive.
+// For Windows the version is not known at call time, so we pass it explicitly.
+func assetName(version string) string {
+	switch runtime.GOOS {
+	case "windows":
+		return installerAssetName(version)
+	default:
+		return fmt.Sprintf("smart-pc-%s-%s.tar.gz", runtime.GOOS, runtime.GOARCH)
 	}
-	return fmt.Sprintf("smart-pc-%s-%s%s", runtime.GOOS, runtime.GOARCH, ext)
 }
 
-// ── Apply ─────────────────────────────────────────────────────────────────────
-// Apply is implemented in apply_unix.go and apply_windows.go.
+// ── archive helpers (unix only) ───────────────────────────────────────────────
 
-// ── archive extraction ────────────────────────────────────────────────────────
-
-// downloadBinary fetches the release archive and returns a reader over the
-// raw binary inside. Caller must close the returned ReadCloser.
-func downloadBinary(release ReleaseInfo) (io.ReadCloser, error) {
+// downloadToReader fetches url and returns a reader over the raw response body.
+func downloadToReader(url string) (io.ReadCloser, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, release.DownloadURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
@@ -197,25 +186,10 @@ func downloadBinary(release ReleaseInfo) (io.ReadCloser, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return nil, fmt.Errorf("download server returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
 	}
 
-	binary, err := extractBinary(resp.Body, release.DownloadURL)
-	if err != nil {
-		resp.Body.Close()
-		return nil, fmt.Errorf("extract: %w", err)
-	}
-
-	return binary, nil
-}
-
-// extractBinary unwraps the archive and returns a reader over the binary inside.
-// Supports .tar.gz (Linux / macOS) and .zip (Windows).
-func extractBinary(body io.Reader, url string) (io.ReadCloser, error) {
-	if strings.HasSuffix(url, ".tar.gz") {
-		return extractFromTarGz(body)
-	}
-	return extractFromZip(body)
+	return resp.Body, nil
 }
 
 // extractFromTarGz streams the first regular file from a .tar.gz archive.
@@ -244,28 +218,7 @@ type tarEntry struct {
 
 func (e *tarEntry) Close() error { return e.gz.Close() }
 
-// extractFromZip buffers the whole body (zip requires random access),
-// then returns the first .exe entry (Windows binary).
-func extractFromZip(body io.Reader) (io.ReadCloser, error) {
-	data, err := io.ReadAll(body)
-	if err != nil {
-		return nil, err
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return nil, err
-	}
-
-	for _, f := range zr.File {
-		if strings.HasSuffix(f.Name, ".exe") {
-			rc, err := f.Open()
-			if err != nil {
-				return nil, err
-			}
-			return rc, nil
-		}
-	}
-
-	return nil, fmt.Errorf("no .exe found in zip archive")
+// installerAssetName returns the Inno Setup installer filename for a given version tag
+func installerAssetName(version string) string {
+	return fmt.Sprintf("smart-pc-agent-setup-%s.exe", version)
 }

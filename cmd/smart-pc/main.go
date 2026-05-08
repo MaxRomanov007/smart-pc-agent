@@ -27,12 +27,6 @@ import (
 var version = "v0.0.0"
 
 func main() {
-	// On Windows: if launched with --do-update=<path> (by the non-elevated
-	// parent), apply the pre-downloaded binary and exit. This is a no-op on
-	// Linux and macOS — the function is defined but empty in apply_unix.go.
-	updater.HandleDoUpdateFlag()
-	updater.CleanupOldBinary()
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 

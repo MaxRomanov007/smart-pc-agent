@@ -2,9 +2,9 @@
 AppName=Smart PC Agent
 AppVersion={#MyAppVersion}
 AppPublisher=MaxRomanov007
-AppPublisherURL=https://github.com/MaxRomanov007/smart-pc
-AppSupportURL=https://github.com/MaxRomanov007/smart-pc/issues
-AppUpdatesURL=https://github.com/MaxRomanov007/smart-pc/releases
+AppPublisherURL=https://github.com/MaxRomanov007/smart-pc-agent
+AppSupportURL=https://github.com/MaxRomanov007/smart-pc-agent/issues
+AppUpdatesURL=https://github.com/MaxRomanov007/smart-pc-agent/releases
 DefaultDirName={autopf}\SmartPC
 DefaultGroupName=Smart PC Agent
 DisableProgramGroupPage=yes
@@ -38,6 +38,9 @@ russian.UninstallShortcutName=Удалить Smart PC
 english.RunDescription=Launch Smart PC Agent
 russian.RunDescription=Запустить Smart PC Agent
 
+english.DeleteInstallerFileDescription=Delete installer file
+russian.DeleteInstallerFileDescription=Удалить установщик
+
 english.MsgAppRunning=Smart PC Agent is currently running. Stop it to proceed with the update?
 russian.MsgAppRunning=Smart PC Agent сейчас работает. Остановить для обновления?
 
@@ -66,9 +69,20 @@ Root: HKLM; Subkey: "Software\SmartPC"; \
   ValueData: "{#MyAppVersion}"; Flags: uninsdeletekey
 
 [Run]
+; Launch the agent after install.
+; "skipifsilent" is intentionally absent — silent updates (from the in-app
+; updater) must also start the agent automatically after installation.
 Filename: "{app}\smart-pc.exe"; \
   Description: "{cm:RunDescription}"; \
-  Flags: nowait postinstall skipifsilent
+  Flags: nowait postinstall
+
+; Delete the installer itself after a successful installation.
+; {srcexe} expands to the full path of the running setup executable,
+; so this works whether the installer was run manually or dropped in %TEMP%.
+Filename: "cmd.exe"; \
+  Parameters: "/c ping -n 2 127.0.0.1 >nul & del /f /q ""{srcexe}"""; \
+  Description: "{cm:DeleteInstallerFileDescription}"; \
+  Flags: runhidden postinstall nowait
 
 [UninstallRun]
 Filename: "taskkill"; Parameters: "/F /IM smart-pc.exe"; \
