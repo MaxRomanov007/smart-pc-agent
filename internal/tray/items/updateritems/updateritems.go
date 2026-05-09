@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"smart-pc-agent/data/assets"
+	appi18n "smart-pc-agent/internal/i18n"
 	"smart-pc-agent/internal/lib/restart"
 	"smart-pc-agent/internal/services/updater"
 	"smart-pc-agent/internal/tray/menu"
@@ -14,7 +15,7 @@ import (
 	"github.com/ncruces/zenity"
 )
 
-// Item implements menu.Item and wires the updater into the systray.
+// Item implements' menu.Item and wires the updater into the systray.
 type Item struct {
 	ctx     context.Context
 	log     *slog.Logger
@@ -37,14 +38,14 @@ func New(
 }
 
 func (it *Item) Mount() {
-	mUpdate := systray.AddMenuItem("Check for updates", "Check for updates")
+	mUpdate := systray.AddMenuItem(appi18n.MsgCheckForUpdates(), appi18n.MsgCheckForUpdates())
 	mUpdate.SetIcon(assets.GetUpdate())
 
 	// Background ticker found an update — switch button to "Update to vX.X.X"
 	// and send a desktop notification. The click handler already running below
 	// will pick up the release on the next click via the captured variable.
 	it.updater.OnUpdateFound(func(release updater.ReleaseInfo) {
-		mUpdate.SetTitle("Update to " + release.Version)
+		mUpdate.SetTitle(appi18n.MsgUpdateTo(release.Version))
 		go notifyAvailable(release.Version)
 	})
 
@@ -68,14 +69,14 @@ func (it *Item) handleClicks(mUpdate *systray.MenuItem) {
 
 func (it *Item) checkAndPrompt(mUpdate *systray.MenuItem) {
 	// Disable button while checking to prevent double-clicks.
-	mUpdate.SetTitle("Checking…")
+	mUpdate.SetTitle(appi18n.MsgChecking())
 	mUpdate.Disable()
 
 	release, found, err := it.updater.Check()
 	if err != nil {
 		it.log.Error("manual update check failed", sl.Err(err))
-		notifyError("Could not reach update server:\n" + err.Error())
-		mUpdate.SetTitle("Check for updates")
+		notifyError(appi18n.MsgCouldNotReachUpdateServer(err.Error()))
+		mUpdate.SetTitle(appi18n.MsgCheckForUpdates())
 		mUpdate.Enable()
 		return
 	}
@@ -83,16 +84,16 @@ func (it *Item) checkAndPrompt(mUpdate *systray.MenuItem) {
 	if !found {
 		it.log.Info("already up to date")
 		_ = zenity.Info(
-			"You are running the latest version.",
+			appi18n.MsgAlreadyUpToDate(),
 			zenity.Title("Smart PC Agent"),
 		)
-		mUpdate.SetTitle("Check for updates")
+		mUpdate.SetTitle(appi18n.MsgCheckForUpdates())
 		mUpdate.Enable()
 		return
 	}
 
 	// Update found — ask for confirmation.
-	mUpdate.SetTitle("Update to " + release.Version)
+	mUpdate.SetTitle(appi18n.MsgUpdateTo(release.Version))
 	mUpdate.Enable()
 
 	it.promptAndApply(mUpdate, release)
@@ -107,13 +108,13 @@ func (it *Item) promptAndApply(mUpdate *systray.MenuItem, release updater.Releas
 
 	it.log.Info("applying update", slog.String("version", release.Version))
 
-	mUpdate.SetTitle("Updating…")
+	mUpdate.SetTitle(appi18n.MsgUpdating())
 	mUpdate.Disable()
 
 	if err := it.updater.Apply(release); err != nil {
 		it.log.Error("update failed", sl.Err(err))
 		notifyError(err.Error())
-		mUpdate.SetTitle("Update to " + release.Version)
+		mUpdate.SetTitle(appi18n.MsgUpdateTo(release.Version))
 		mUpdate.Enable()
 		return
 	}
@@ -121,11 +122,11 @@ func (it *Item) promptAndApply(mUpdate *systray.MenuItem, release updater.Releas
 	restart.Now(it.stop)
 }
 
-// ── zenity helpers ────────────────────────────────────────────────────────────
+// zenity helpers
 
 func notifyAvailable(version string) {
 	_ = zenity.Notify(
-		"Update "+version+" is available. Click the tray icon to install.",
+		appi18n.MsgUpdateAvailableNotify(version),
 		zenity.Title("Smart PC Agent"),
 	)
 }
@@ -133,16 +134,16 @@ func notifyAvailable(version string) {
 func notifyError(msg string) {
 	_ = zenity.Error(
 		msg,
-		zenity.Title("Update failed"),
+		zenity.Title(appi18n.MsgUpdateFailed()),
 	)
 }
 
 func askConfirmation(version string) bool {
 	err := zenity.Question(
-		"Update agent to "+version+"?",
-		zenity.Title("Update available"),
-		zenity.OKLabel("Update"),
-		zenity.CancelLabel("Cancel"),
+		appi18n.MsgUpdateAvailableQuestion(version),
+		zenity.Title(appi18n.MsgUpdateAvailableTitle()),
+		zenity.OKLabel(appi18n.MsgUpdateOKLabel()),
+		zenity.CancelLabel(appi18n.MsgCancelLabel()),
 	)
 	return err == nil
 }

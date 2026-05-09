@@ -1,0 +1,143 @@
+[OpenDashboard]
+other = "Открыть панель управления"
+
+[OpenInterface]
+other = "Открыть интерфейс"
+
+[Quit]
+other = "Выйти"
+
+[QuitTooltip]
+other = "Закрыть Smart PC агент"
+
+[CheckForUpdates]
+other = "Проверить обновления"
+
+[UpdateTo]
+other = "Обновить до {{.Version}}"
+
+[Checking]
+other = "Проверяем…"
+
+[Updating]
+other = "Обновляем…"
+
+[InstallWaker]
+other = "Установить waker"
+
+[InstallWakerSSHUnavailable]
+other = "Установить waker (SSH недоступен)"
+
+[UninstallWaker]
+other = "Удалить waker"
+
+[UninstallWakerSSHUnavailable]
+other = "Удалить waker (SSH недоступен)"
+
+[AuthorizeWaker]
+other = "Авторизовать waker"
+
+[TrayTitle]
+other = "Smart PC"
+
+[TrayTooltip]
+other = "Агент управления Smart PC"
+
+[AlreadyUpToDate]
+other = "У вас установлена последняя версия."
+
+[UpdateAvailableNotify]
+other = "Доступно обновление {{.Version}}. Нажмите на иконку в трее для установки."
+
+[UpdateAvailableQuestion]
+other = "Обновить агент до {{.Version}}?"
+
+[UpdateFailed]
+other = "Ошибка обновления"
+
+[InstallingWaker]
+other = "Установка waker"
+
+[UninstallingWaker]
+other = "Удаление waker"
+
+[ClickOKToAuthorize]
+other = "Нажмите OK для авторизации waker"
+
+[WakerUninstalledSuccessfully]
+other = "Waker успешно удалён."
+
+[FailedToInstallWaker]
+other = "Не удалось установить waker. Подробнее в логах."
+
+[FailedToUninstallWaker]
+other = "Не удалось удалить waker. Подробнее в логах."
+
+[SSHCredentialsInstall]
+other = "Введите SSH-данные для установки waker"
+
+[SSHCredentialsUninstall]
+other = "Введите SSH-данные для удаления waker"
+
+[UpdateAvailableTitle]
+other = "Доступно обновление"
+
+[UpdateOKLabel]
+other = "Обновить"
+
+[CancelLabel]
+other = "Отмена"
+
+[AuthorizeWakerTooltip]
+other = "Разрешить waker принимать команды"
+
+[InstallWakerTooltip]
+other = "Установить удалённый waker агент через SSH"
+
+[InstallWakerSSHUnavailableTooltip]
+other = "Устройство по адресу waker не поддерживает SSH"
+
+[UninstallWakerTooltip]
+other = "Удалить удалённый waker агент через SSH"
+
+[UninstallWakerSSHUnavailableTooltip]
+other = "Устройство по адресу waker не поддерживает SSH"
+
+[StepDialSSH]
+other = "Создание SSH-соединения"
+
+[StepDetectArch]
+other = "Определение архитектуры"
+
+[StepGetLatestTag]
+other = "Получение последней версии"
+
+[StepDownloadBinary]
+other = "Загрузка бинарного файла"
+
+[StepUpload]
+other = "Загрузка на устройство"
+
+[StepConfigureAutostart]
+other = "Настройка автозапуска"
+
+[StepRemoveTempFile]
+other = "Удаление временного файла"
+
+[StepCloseConnection]
+other = "Закрытие соединения"
+
+[StepUnregisterAllPcs]
+other = "Отмена регистрации всех ПК"
+
+[StepRemoveAutostart]
+other = "Удаление автозапуска"
+
+[StepRemoveBinary]
+other = "Удаление бинарного файла"
+
+[StepRemoveCache]
+other = "Очистка кэша"
+
+[CouldNotReachUpdateServer]
+other = "Не удалось связаться с сервером обновлений:\n{{.Error}}"

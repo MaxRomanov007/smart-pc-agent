@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"smart-pc-agent/data/assets"
 	"smart-pc-agent/internal/config"
+	appi18n "smart-pc-agent/internal/i18n"
 	"smart-pc-agent/internal/tray/menu"
 
 	"github.com/MaxRomanov007/smart-pc-go-lib/cross-platform/browser"
@@ -27,10 +28,10 @@ func New(ctx context.Context, log *slog.Logger, uiCfg config.UI) menu.Item {
 }
 
 func (it *Item) Mount() {
-	mDashboard := systray.AddMenuItem("Open dashboard", "Open dashboard")
+	mDashboard := systray.AddMenuItem(appi18n.MsgOpenDashboard(), appi18n.MsgOpenDashboard())
 	mDashboard.SetIcon(assets.GetHouse())
 
-	mInterface := systray.AddMenuItem("Open interface", "Open interface")
+	mInterface := systray.AddMenuItem(appi18n.MsgOpenInterface(), appi18n.MsgOpenInterface())
 	mInterface.SetIcon(assets.GetPcCase())
 
 	go it.handleClicks(mDashboard, mInterface)

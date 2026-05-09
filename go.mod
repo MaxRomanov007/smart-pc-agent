@@ -3,6 +3,7 @@ module smart-pc-agent
 go 1.26
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/MaxRomanov007/smart-pc-go-lib v1.1.0
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/getlantern/systray v1.2.2
@@ -12,18 +13,21 @@ require (
 	github.com/go-playground/validator/v10 v10.30.2
 	github.com/google/uuid v1.6.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
+	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/itchyny/volume-go v0.2.2
+	github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade
 	github.com/libp2p/go-netroute v0.4.0
 	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/ncruces/zenity v0.10.14
+	github.com/nicksnyder/go-i18n/v2 v2.6.1
 	github.com/shirou/gopsutil/v4 v4.26.4
 	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/crypto v0.50.0
 	golang.org/x/oauth2 v0.36.0
+	golang.org/x/text v0.36.0
 )
 
 require (
-	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/ajg/form v1.7.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -44,7 +48,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josephspurrier/goversioninfo v1.5.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -67,7 +70,6 @@ require (
 	golang.org/x/image v0.39.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )

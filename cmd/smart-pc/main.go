@@ -7,6 +7,7 @@ import (
 	authorization "smart-pc-agent/internal/auth"
 	"smart-pc-agent/internal/config"
 	httpServer "smart-pc-agent/internal/http-server"
+	appi18n "smart-pc-agent/internal/i18n"
 	"smart-pc-agent/internal/lib/logger"
 	luaApi "smart-pc-agent/internal/lib/lua-api"
 	"smart-pc-agent/internal/mqtt"
@@ -37,6 +38,8 @@ func main() {
 	log := logger.MustSetupLogger(logCtx, cfg.Env, string(cfg.LogPath))
 
 	log.Debug("debug messages are enabled")
+
+	appi18n.Init(log)
 
 	waker, err := wakerService.New(ctx, cfg.Services.Waker, log)
 	if err != nil {

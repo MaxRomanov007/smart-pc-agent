@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"smart-pc-agent/data/assets"
 	"smart-pc-agent/internal/config"
+	appi18n "smart-pc-agent/internal/i18n"
 	"smart-pc-agent/internal/services/updater"
 	"smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/tray/items/navigation"
@@ -47,8 +48,8 @@ func Start(
 func onReady(items []menu.Item) func() {
 	return func() {
 		systray.SetIcon(assets.GetIcon())
-		systray.SetTitle("Smart PC")
-		systray.SetTooltip("Smart PC Control Agent")
+		systray.SetTitle(appi18n.MsgTrayTitle())
+		systray.SetTooltip(appi18n.MsgTrayTooltip())
 
 		for _, item := range items {
 			item.Mount()

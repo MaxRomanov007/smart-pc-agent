@@ -3,7 +3,10 @@
 package updater
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -43,3 +46,29 @@ func (s *Service) Apply(release ReleaseInfo) error {
 	s.log.Info("update applied", slog.String("version", release.Version))
 	return nil
 }
+
+// extractFromTarGz streams the first regular file from a .tar.gz archive.
+func extractFromTarGz(body io.Reader) (io.ReadCloser, error) {
+	gz, err := gzip.NewReader(body)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := tar.NewReader(gz)
+	for {
+		hdr, err := tr.Next()
+		if err != nil {
+			return nil, fmt.Errorf("binary not found in archive: %w", err)
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			return &tarEntry{Reader: tr, gz: gz}, nil
+		}
+	}
+}
+
+type tarEntry struct {
+	io.Reader
+	gz *gzip.Reader
+}
+
+func (e *tarEntry) Close() error { return e.gz.Close() }

@@ -1,0 +1,159 @@
+[OpenDashboard]
+description = "Tray menu item"
+other = "Open dashboard"
+
+[OpenInterface]
+description = "Tray menu item"
+other = "Open interface"
+
+[Quit]
+description = "Tray menu item"
+other = "Quit"
+
+[QuitTooltip]
+description = "Tray menu item tooltip"
+other = "Quit Smart PC agent"
+
+[CheckForUpdates]
+description = "Tray menu item"
+other = "Check for updates"
+
+[UpdateTo]
+description = "Tray menu item with version"
+other = "Update to {{.Version}}"
+
+[Checking]
+description = "Tray menu item while checking"
+other = "Checking…"
+
+[Updating]
+description = "Tray menu item while updating"
+other = "Updating…"
+
+[InstallWaker]
+description = "Tray menu item"
+other = "Install waker"
+
+[InstallWakerSSHUnavailable]
+description = "Tray menu item when SSH not available"
+other = "Install waker (SSH unavailable)"
+
+[UninstallWaker]
+description = "Tray menu item"
+other = "Uninstall waker"
+
+[UninstallWakerSSHUnavailable]
+other = "Uninstall waker (SSH unavailable)"
+
+[AuthorizeWaker]
+other = "Authorize waker"
+
+[TrayTitle]
+other = "Smart PC"
+
+[TrayTooltip]
+other = "Smart PC Control Agent"
+
+# Zenity dialogs
+
+[AlreadyUpToDate]
+other = "You are running the latest version."
+
+[UpdateAvailableNotify]
+description = "Desktop notification body"
+other = "Update {{.Version}} is available. Click the tray icon to install."
+
+[UpdateAvailableQuestion]
+other = "Update agent to {{.Version}}?"
+
+[UpdateFailed]
+other = "Update failed"
+
+[InstallingWaker]
+other = "Installing waker"
+
+[UninstallingWaker]
+other = "Uninstalling waker"
+
+[ClickOKToAuthorize]
+other = "Click OK to authorize waker"
+
+[WakerUninstalledSuccessfully]
+other = "Waker uninstalled successfully."
+
+[FailedToInstallWaker]
+other = "Failed to install waker. See the logs for details."
+
+[FailedToUninstallWaker]
+other = "Failed to uninstall waker. See the logs for details."
+
+[SSHCredentialsInstall]
+other = "Type SSH credentials to install waker"
+
+[SSHCredentialsUninstall]
+other = "Type SSH credentials to uninstall waker"
+
+[UpdateAvailableTitle]
+other = "Update available"
+
+[UpdateOKLabel]
+other = "Update"
+
+[CancelLabel]
+other = "Cancel"
+
+[AuthorizeWakerTooltip]
+other = "Allow the waker to receive commands"
+
+[InstallWakerTooltip]
+other = "Install the remote waker agent via SSH"
+
+[InstallWakerSSHUnavailableTooltip]
+other = "The device at the waker IP does not support SSH"
+
+[UninstallWakerTooltip]
+other = "Remove the remote waker agent via SSH"
+
+[UninstallWakerSSHUnavailableTooltip]
+other = "The device at the waker IP does not support SSH"
+
+# Install steps
+
+[StepDialSSH]
+other = "Creating an SSH connection"
+
+[StepDetectArch]
+other = "Detecting architecture"
+
+[StepGetLatestTag]
+other = "Getting latest version"
+
+[StepDownloadBinary]
+other = "Downloading binary"
+
+[StepUpload]
+other = "Uploading file"
+
+[StepConfigureAutostart]
+other = "Configuring autostart"
+
+[StepRemoveTempFile]
+other = "Removing temporary file"
+
+[StepCloseConnection]
+other = "Closing connection"
+
+[StepUnregisterAllPcs]
+other = "Unregistering all pcs"
+
+[StepRemoveAutostart]
+other = "Removing Autostart"
+
+[StepRemoveBinary]
+other = "Removing Binary"
+
+[StepRemoveCache]
+other = "Removing Cache"
+
+[CouldNotReachUpdateServer]
+other = "Could not reach update server:\n{{.Error}}"

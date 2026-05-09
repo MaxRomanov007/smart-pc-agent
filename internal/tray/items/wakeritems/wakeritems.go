@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"smart-pc-agent/data/assets"
+	appi18n "smart-pc-agent/internal/i18n"
 	"smart-pc-agent/internal/lib/installer"
 	"smart-pc-agent/internal/services/waker"
 	"smart-pc-agent/internal/tray/menu"
@@ -54,13 +55,19 @@ func (it *Item) Mount() {
 		it.log.Error("failed to load waker state", sl.Err(err))
 	}
 
-	mInstall := systray.AddMenuItem("Install waker", "Install the remote waker agent via SSH")
+	mInstall := systray.AddMenuItem(appi18n.MsgInstallWaker(), appi18n.MsgInstallWakerTooltip())
 	mInstall.SetIcon(assets.GetDownload())
 
-	mUninstall := systray.AddMenuItem("Uninstall waker", "Remove the remote waker agent via SSH")
+	mUninstall := systray.AddMenuItem(
+		appi18n.MsgUninstallWaker(),
+		appi18n.MsgUninstallWakerTooltip(),
+	)
 	mUninstall.SetIcon(assets.GetTrash())
 
-	mAuthorize := systray.AddMenuItem("Authorize waker", "Allow the waker to receive commands")
+	mAuthorize := systray.AddMenuItem(
+		appi18n.MsgAuthorizeWaker(),
+		appi18n.MsgAuthorizeWakerTooltip(),
+	)
 	mAuthorize.SetIcon(assets.GetLogIn())
 
 	it.applyState(state, mInstall, mUninstall, mAuthorize)
@@ -105,12 +112,12 @@ func (it *Item) applyState(
 	if !s.available {
 		mInstall.Show()
 		if s.sshAvailable {
-			mInstall.SetTitle("Install waker")
-			mInstall.SetTooltip("Install the remote waker agent via SSH")
+			mInstall.SetTitle(appi18n.MsgInstallWaker())
+			mInstall.SetTooltip(appi18n.MsgInstallWakerTooltip())
 			mInstall.Enable()
 		} else {
-			mInstall.SetTitle("Install waker (SSH unavailable)")
-			mInstall.SetTooltip("The device at the waker IP does not support SSH")
+			mInstall.SetTitle(appi18n.MsgInstallWakerSSHUnavailable())
+			mInstall.SetTooltip(appi18n.MsgInstallWakerSSHUnavailableTooltip())
 			mInstall.Disable()
 		}
 		return
@@ -118,12 +125,12 @@ func (it *Item) applyState(
 
 	mUninstall.Show()
 	if s.sshAvailable {
-		mUninstall.SetTitle("Uninstall waker")
-		mUninstall.SetTooltip("Remove the remote waker agent via SSH")
+		mUninstall.SetTitle(appi18n.MsgUninstallWaker())
+		mUninstall.SetTooltip(appi18n.MsgUninstallWakerTooltip())
 		mUninstall.Enable()
 	} else {
-		mUninstall.SetTitle("Uninstall waker (SSH unavailable)")
-		mUninstall.SetTooltip("The device at the waker IP does not support SSH")
+		mUninstall.SetTitle(appi18n.MsgUninstallWakerSSHUnavailable())
+		mUninstall.SetTooltip(appi18n.MsgUninstallWakerSSHUnavailableTooltip())
 		mUninstall.Disable()
 	}
 
@@ -154,15 +161,14 @@ func (it *Item) handleClicks(mInstall, mUninstall, mAuthorize *systray.MenuItem)
 func (it *Item) onInstall(mInstall, mUninstall, mAuthorize *systray.MenuItem) {
 	it.log.Info("install waker clicked")
 
-	creds, ok := it.askSSHCredentials("Type SSH credentials to install waker")
+	creds, ok := it.askSSHCredentials(appi18n.MsgSSHCredentialsInstall())
 	if !ok {
 		return
 	}
 
 	dlg, err := zenity.Progress(
-		zenity.Title("Installing waker"),
+		zenity.Title(appi18n.MsgInstallingWaker()),
 		zenity.NoCancel(),
-		zenity.OKLabel("Authorize"),
 	)
 	if err != nil {
 		it.log.Error("failed to show progress dialog")
@@ -180,10 +186,10 @@ func (it *Item) onInstall(mInstall, mUninstall, mAuthorize *systray.MenuItem) {
 		it.onInstallStep(dlg),
 	); err != nil {
 		it.log.Error("failed to install waker", sl.Err(err))
-		it.showError("Failed to install waker. See the logs for details.")
+		it.showError(appi18n.MsgFailedToInstallWaker())
 		return
 	}
-	if err := dlg.Text("Click OK to authorize waker"); err != nil {
+	if err := dlg.Text(appi18n.MsgClickOKToAuthorize()); err != nil {
 		it.log.Error("failed to set progress dialog text", sl.Err(err))
 	}
 	if err := dlg.Complete(); err != nil {
@@ -201,12 +207,12 @@ func (it *Item) onInstall(mInstall, mUninstall, mAuthorize *systray.MenuItem) {
 func (it *Item) onUninstall(mInstall, mUninstall, mAuthorize *systray.MenuItem) {
 	it.log.Info("uninstall waker clicked")
 
-	creds, ok := it.askSSHCredentials("Type SSH credentials to uninstall waker")
+	creds, ok := it.askSSHCredentials(appi18n.MsgSSHCredentialsUninstall())
 	if !ok {
 		return
 	}
 
-	dlg, err := zenity.Progress(zenity.Title("Uninstalling waker"), zenity.NoCancel())
+	dlg, err := zenity.Progress(zenity.Title(appi18n.MsgUninstallingWaker()), zenity.NoCancel())
 	if err != nil {
 		it.log.Error("failed to show progress dialog")
 		return
@@ -224,10 +230,10 @@ func (it *Item) onUninstall(mInstall, mUninstall, mAuthorize *systray.MenuItem) 
 		it.onUninstallStep(dlg),
 	); err != nil {
 		it.log.Error("failed to uninstall waker", sl.Err(err))
-		it.showError("Failed to uninstall waker. See the logs for details.")
+		it.showError(appi18n.MsgFailedToUninstallWaker())
 		return
 	}
-	if err := dlg.Text("Waker uninstalled successfully."); err != nil {
+	if err := dlg.Text(appi18n.MsgWakerUninstalledSuccessfully()); err != nil {
 		it.log.Error("failed to set progress dialog text", sl.Err(err))
 	}
 	if err := dlg.Complete(); err != nil {
@@ -260,21 +266,21 @@ func (it *Item) onInstallStep(dlg zenity.ProgressDialog) func(step installer.Ins
 		step := int(is)
 		switch is {
 		case installer.InstallStepDialSSH:
-			stepFunc(step, "Creating an SSH connection")
+			stepFunc(step, appi18n.MsgStepDialSSH())
 		case installer.InstallStepDetectArch:
-			stepFunc(step, "Detecting architecture")
+			stepFunc(step, appi18n.MsgStepDetectArch())
 		case installer.InstallStepGetLatestTag:
-			stepFunc(step, "Getting latest version")
+			stepFunc(step, appi18n.MsgStepGetLatestTag())
 		case installer.InstallStepDownloadBinary:
-			stepFunc(step, "Downloading binary")
+			stepFunc(step, appi18n.MsgStepDownloadBinary())
 		case installer.InstallStepUpload:
-			stepFunc(step, "Uploading file")
+			stepFunc(step, appi18n.MsgStepUpload())
 		case installer.InstallStepConfigureAutostart:
-			stepFunc(step, "Configuring autostart")
+			stepFunc(step, appi18n.MsgStepConfigureAutostart())
 		case installer.InstallStepRemoveTempFile:
-			stepFunc(step, "Removing temporary file")
+			stepFunc(step, appi18n.MsgStepRemoveTempFile())
 		case installer.InstallStepCloseConnection:
-			stepFunc(step, "Closing connection")
+			stepFunc(step, appi18n.MsgStepCloseConnection())
 		}
 	}
 }
@@ -285,17 +291,17 @@ func (it *Item) onUninstallStep(dlg zenity.ProgressDialog) func(step installer.U
 		step := int(us)
 		switch us {
 		case installer.UninstallStepUnregisterAllPcs:
-			stepFunc(step, "Unregistering all pcs")
+			stepFunc(step, appi18n.MsgStepUnregisterAllPcs())
 		case installer.UninstallStepDialSSH:
-			stepFunc(step, "Creating an SSH connection")
+			stepFunc(step, appi18n.MsgStepDialSSH())
 		case installer.UninstallStepRemoveAutostart:
-			stepFunc(step, "Removing Autostart")
+			stepFunc(step, appi18n.MsgStepRemoveAutostart())
 		case installer.UninstallStepRemoveBinary:
-			stepFunc(step, "Removing Binary")
+			stepFunc(step, appi18n.MsgStepRemoveBinary())
 		case installer.UninstallStepRemoveCache:
-			stepFunc(step, "Removing Cache")
+			stepFunc(step, appi18n.MsgStepRemoveCache())
 		case installer.UninstallStepCloseConnection:
-			stepFunc(step, "Closing Connection")
+			stepFunc(step, appi18n.MsgStepCloseConnection())
 		}
 	}
 }
