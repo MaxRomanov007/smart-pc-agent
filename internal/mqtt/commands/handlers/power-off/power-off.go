@@ -21,8 +21,15 @@ const (
 	stepsBySecond = 2
 )
 
-func New(log *slog.Logger) commands.CommandFunc {
-	return func(ctx context.Context, msg *commandMessage.Message) error {
+func New(
+	log *slog.Logger,
+	stop func(),
+	appDone <-chan struct{},
+) (commands.CommandFunc, <-chan struct{}, <-chan struct{}) {
+	shutdownDone := make(chan struct{})
+	shutdownStarted := make(chan struct{})
+
+	handler := func(ctx context.Context, msg *commandMessage.Message) error {
 		const op = "commands.handlers.power-off"
 		log := log.With(sl.Op(op), sl.MsgID(msg.Publish))
 
@@ -43,10 +50,7 @@ func New(log *slog.Logger) commands.CommandFunc {
 
 			if err := dlg.Value(
 				int((i + 1.0/stepsBySecond) / seconds * 100),
-			); errors.Is(
-				err,
-				zenity.ErrCanceled,
-			) {
+			); errors.Is(err, zenity.ErrCanceled) {
 				log.Info("canceled by user")
 				return commands.Error("canceled by user")
 			}
@@ -55,25 +59,29 @@ func New(log *slog.Logger) commands.CommandFunc {
 		}
 
 		_ = dlg.Text(appi18n.MsgPowerOffShuttingDown())
-		if err := dlg.Complete(); errors.Is(
-			err,
-			zenity.ErrCanceled,
-		) {
+		if err := dlg.Complete(); errors.Is(err, zenity.ErrCanceled) {
 			log.Info("canceled by user (on completion)")
 			return commands.Error("canceled by user")
 		}
-		time.Sleep(500 * time.Millisecond)
 		_ = dlg.Close()
 
-		if err := shutdown(); err != nil {
-			_ = zenity.Error(
-				appi18n.MsgPowerOffError(err),
-				zenity.Title(appi18n.MsgPowerOffErrorTitle()),
-			)
-		}
+		go func() {
+			close(shutdownStarted)
+			stop()
+			<-appDone
+			defer close(shutdownDone)
+			if err := shutdown(); err != nil {
+				_ = zenity.Error(
+					appi18n.MsgPowerOffError(err),
+					zenity.Title(appi18n.MsgPowerOffErrorTitle()),
+				)
+			}
+		}()
 
 		return nil
 	}
+
+	return handler, shutdownStarted, shutdownDone
 }
 
 func shutdown() error {
@@ -83,7 +91,7 @@ func shutdown() error {
 		cmd = exec.Command("shutdown", "/s", "/t", "0")
 	case "darwin":
 		cmd = exec.Command("osascript", "-e", `tell app "System Events" to shut down`)
-	default: // linux, freebsd, etc.
+	default:
 		cmd = exec.Command("shutdown", "-h", "now")
 	}
 	return cmd.Run()

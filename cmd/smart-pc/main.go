@@ -75,6 +75,8 @@ func main() {
 		Register("log", luaLog.New(log)).
 		Register("messages", luaMessages.New())
 
+	appDone := make(chan struct{})
+
 	mqttConn, err := mqtt.New(
 		ctx,
 		log,
@@ -84,6 +86,8 @@ func main() {
 		storage.AppStorage,
 		storage.Commands,
 		storage.CommandParameters,
+		stop,
+		appDone,
 	)
 	if err != nil {
 		log.Error("failed to create mqtt connection", sl.Err(err))
@@ -113,4 +117,12 @@ func main() {
 	}()
 
 	waitable.WaitAll(mqttConn, srv, waker)
+	close(appDone)
+
+	started, done := mqttConn.ShutdownDone()
+	select {
+	case <-started:
+		<-done
+	default:
+	}
 }

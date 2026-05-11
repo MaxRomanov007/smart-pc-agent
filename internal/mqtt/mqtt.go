@@ -26,7 +26,9 @@ import (
 const clientIDPostfixLength = 6
 
 type MQTT struct {
-	Connection *mqttAuth.Connection
+	Connection      *mqttAuth.Connection
+	shutdownDone    <-chan struct{}
+	shutdownStarted <-chan struct{}
 }
 
 type PcIDGetter interface {
@@ -42,6 +44,8 @@ func New(
 	pcIDGetter PcIDGetter,
 	commandGetter executeScript.CommandGetter,
 	commandParamsGetter executeScript.CommandParamsGetter,
+	stop func(),
+	appDone <-chan struct{},
 ) (*MQTT, error) {
 	const op = "mqtt.New"
 
@@ -67,6 +71,8 @@ func New(
 
 	startSendState(ctx, localCtx, pcID, log, connection, cancel)
 
+	powerOffHandler, shutdownStarted, shutdownDone := powerOff.New(log, stop, appDone)
+
 	executor := commands.NewExecutor(connection, router)
 	executor.SetDefault(executeScript.New(log, commandGetter, commandParamsGetter, registry))
 	executor.Set("mute", mute.New(log))
@@ -75,7 +81,7 @@ func New(
 	executor.Set("play-pause", playPause.New(log))
 	executor.Set("next-track", nextTrack.New(log))
 	executor.Set("prev-track", prevTrack.New(log))
-	executor.Set("power-off", powerOff.New(log))
+	executor.Set("power-off", powerOffHandler)
 
 	if err := executor.StartListen(localCtx, &commands.StartListenOptions{
 		CommandTopic:       fmt.Sprintf("pcs/%s/command", pcID),
@@ -89,7 +95,9 @@ func New(
 	}
 
 	return &MQTT{
-		Connection: connection,
+		Connection:      connection,
+		shutdownDone:    shutdownDone,
+		shutdownStarted: shutdownStarted,
 	}, nil
 }
 
@@ -132,4 +140,8 @@ func createMQTTConfig(
 
 func (m *MQTT) Done() <-chan struct{} {
 	return m.Connection.Done()
+}
+
+func (m *MQTT) ShutdownDone() (<-chan struct{}, <-chan struct{}) {
+	return m.shutdownStarted, m.shutdownDone
 }
