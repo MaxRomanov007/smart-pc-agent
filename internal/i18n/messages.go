@@ -117,3 +117,18 @@ func MsgStepUnregisterAllPcs() string { return T("StepUnregisterAllPcs", "Unregi
 func MsgStepRemoveAutostart() string  { return T("StepRemoveAutostart", "Removing Autostart") }
 func MsgStepRemoveBinary() string     { return T("StepRemoveBinary", "Removing Binary") }
 func MsgStepRemoveCache() string      { return T("StepRemoveCache", "Removing Cache") }
+
+func MsgPowerOffTitle() string        { return T("PowerOffTitle", "Shutdown") }
+func MsgPowerOffShuttingDown() string { return T("PowerOffShuttingDown", "Shutting down...") }
+func MsgPowerOffCancelLabel() string  { return T("PowerOffCancelLabel", "Cancel") }
+func MsgPowerOffErrorTitle() string   { return T("PowerOffErrorTitle", "Error") }
+
+func MsgPowerOffCountdown(seconds int) string {
+	return TData("PowerOffCountdown", "PC will shut down in {{.Seconds}} sec...",
+		map[string]any{"Seconds": seconds})
+}
+
+func MsgPowerOffError(err error) string {
+	return TData("PowerOffError", "Failed to shut down PC: {{.Error}}",
+		map[string]any{"Error": err})
+}

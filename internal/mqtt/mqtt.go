@@ -12,6 +12,7 @@ import (
 	"smart-pc-agent/internal/mqtt/commands/handlers/mute"
 	nextTrack "smart-pc-agent/internal/mqtt/commands/handlers/next-track"
 	playPause "smart-pc-agent/internal/mqtt/commands/handlers/play-pause"
+	powerOff "smart-pc-agent/internal/mqtt/commands/handlers/power-off"
 	prevTrack "smart-pc-agent/internal/mqtt/commands/handlers/prev-track"
 	setVolume "smart-pc-agent/internal/mqtt/commands/handlers/set-volume"
 	"smart-pc-agent/internal/mqtt/commands/handlers/unmute"
@@ -74,6 +75,7 @@ func New(
 	executor.Set("play-pause", playPause.New(log))
 	executor.Set("next-track", nextTrack.New(log))
 	executor.Set("prev-track", prevTrack.New(log))
+	executor.Set("power-off", powerOff.New(log))
 
 	if err := executor.StartListen(localCtx, &commands.StartListenOptions{
 		CommandTopic:       fmt.Sprintf("pcs/%s/command", pcID),

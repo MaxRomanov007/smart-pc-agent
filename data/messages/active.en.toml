@@ -157,3 +157,23 @@ other = "Removing Cache"
 
 [CouldNotReachUpdateServer]
 other = "Could not reach update server:\n{{.Error}}"
+
+# Power off command
+
+[PowerOffTitle]
+other = "Shutdown"
+
+[PowerOffCountdown]
+other = "PC will shut down in {{.Seconds}} sec…"
+
+[PowerOffShuttingDown]
+other = "Shutting down…"
+
+[PowerOffCancelLabel]
+other = "Cancel"
+
+[PowerOffError]
+other = "Failed to shut down PC: {{.Error}}"
+
+[PowerOffErrorTitle]
+other = "Error"

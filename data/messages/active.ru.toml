@@ -141,3 +141,21 @@ other = "Очистка кэша"
 
 [CouldNotReachUpdateServer]
 other = "Не удалось связаться с сервером обновлений:\n{{.Error}}"
+
+[PowerOffTitle]
+other = "Выключение"
+
+[PowerOffCountdown]
+other = "ПК выключится через {{.Seconds}} сек…"
+
+[PowerOffShuttingDown]
+other = "Отключение…"
+
+[PowerOffCancelLabel]
+other = "Отмена"
+
+[PowerOffError]
+other = "Не удалось выключить ПК: {{.Error}}"
+
+[PowerOffErrorTitle]
+other = "Ошибка"
